@@ -1,4 +1,4 @@
-"""Loading plan JSON into the typed model, including unknown and sensitive values."""
+"""Loading plan JSON into the typed model, including values known only after apply."""
 
 from __future__ import annotations
 
@@ -53,12 +53,6 @@ def test_deleted_resources_have_no_after() -> None:
     assert database.kind is ChangeKind.DELETE
     assert database.after is None
     assert isinstance(database.before, dict)
-
-
-def test_sensitive_marks_are_loaded() -> None:
-    database = by_address(load_fixture("destroy_stateful"))["aws_db_instance.orders"].change
-    assert is_marked(database.before_sensitive, ["password"])
-    assert not is_marked(database.before_sensitive, ["engine"])
 
 
 @pytest.mark.parametrize(

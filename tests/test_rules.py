@@ -86,6 +86,26 @@ def test_r1_ignores_the_destruction_of_a_stateless_resource() -> None:
 
 
 @pytest.mark.parametrize(
+    ("resource_type", "lost"),
+    [
+        ("aws_kms_key", "the key material; everything encrypted with the key becomes unreadable"),
+        ("aws_cognito_user_pool", "the users in the pool"),
+        ("aws_elasticache_replication_group", "the cached data in the replication group"),
+        ("aws_elasticache_cluster", "the cached data in the cluster"),
+        ("aws_elasticsearch_domain", "the indexes in the domain"),
+        ("aws_glacier_vault", "the archives in the vault"),
+    ],
+)
+def test_r1_flags_the_destruction_of_keys_identities_caches_and_archives(
+    resource_type: str, lost: str
+) -> None:
+    findings = r1_stateful_destroyed(make_change(["delete"], resource_type=resource_type))
+    assert findings == [
+        Finding("R1", Severity.HIGH, f"{resource_type}.example", f"Destroyed. It holds {lost}.")
+    ]
+
+
+@pytest.mark.parametrize(
     "actions",
     [
         ["no-op"],

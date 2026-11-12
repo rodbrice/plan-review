@@ -10,9 +10,9 @@ Two details of the format matter for a reviewer:
   the matching position in ``after_unknown`` is ``true``. A rule must never read a
   missing or ``null`` value in ``after`` as "the attribute is removed" without checking
   ``after_unknown``.
-- Sensitive values are present in clear text in ``before`` and ``after``;
-  ``before_sensitive`` and ``after_sensitive`` only mark where they are. The rules and
-  reporters of this package never copy an attribute value into their output.
+- Sensitive values are present in clear text in ``before`` and ``after``; the plan only
+  marks where they are. The rules and reporters of this package never copy an attribute
+  value into their output, so the model does not load those marks.
 """
 
 from __future__ import annotations
@@ -44,8 +44,6 @@ class Change(_Model):
     before: JsonValue = None
     after: JsonValue = None
     after_unknown: JsonValue = None
-    before_sensitive: JsonValue = None
-    after_sensitive: JsonValue = None
     replace_paths: tuple[tuple[PathStep, ...], ...] = ()
 
     @field_validator("actions")
@@ -93,10 +91,10 @@ class Plan(_Model):
 
 
 def is_marked(marks: JsonValue, path: Sequence[PathStep]) -> bool:
-    """Follow ``path`` through an ``after_unknown`` or ``*_sensitive`` structure.
+    """Follow ``path`` through an ``after_unknown`` structure.
 
-    Those structures mirror the shape of ``before``/``after`` but hold ``true`` where a
-    value is unknown or sensitive. A ``true`` on the way down marks the whole subtree.
+    It mirrors the shape of ``after`` but holds ``true`` where a value is only known
+    after apply. A ``true`` on the way down marks the whole subtree.
     """
     node = marks
     for step in path:

@@ -11,7 +11,7 @@ All notable changes to this project are documented here. The format follows
 - `plan-review` command: reads a `terraform show -json` output file, prints a plain-text
   report and exits 0, 1 (blocking finding) or 2 (unusable input or arguments).
 - Typed model of the plan JSON (pydantic), with checks on `format_version` and on the
-  action lists, and helpers for values known only after apply and sensitive values.
+  action lists, and a helper for values known only after apply.
 - Classification of each change: no-op, create, read, update, delete, forget, and
   replacement in both orders (delete then create, create then delete), including the
   forget-then-create and create-then-forget forms of a resource with
