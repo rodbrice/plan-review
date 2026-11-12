@@ -1,0 +1,400 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.17.2",
+  "planned_values": {
+    "root_module": {
+      "resources": [
+        {
+          "address": "aws_iam_policy.break_glass",
+          "mode": "managed",
+          "type": "aws_iam_policy",
+          "name": "break_glass",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 0,
+          "values": {
+            "delay_after_policy_creation_in_ms": null,
+            "description": null,
+            "name": "example-break-glass",
+            "path": "/",
+            "policy": "{\"Statement\":[{\"Action\":\"*\",\"Effect\":\"Allow\",\"Resource\":\"*\"}],\"Version\":\"2012-10-17\"}",
+            "tags": null
+          },
+          "sensitive_values": {
+            "tags_all": {}
+          },
+          "identity_schema_version": 0,
+          "identity": {
+            "arn": null
+          }
+        },
+        {
+          "address": "aws_iam_policy.deployer",
+          "mode": "managed",
+          "type": "aws_iam_policy",
+          "name": "deployer",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 0,
+          "values": {
+            "arn": "arn:aws:iam::123456789012:policy/example-deployer",
+            "attachment_count": null,
+            "delay_after_policy_creation_in_ms": null,
+            "description": null,
+            "id": "arn:aws:iam::123456789012:policy/example-deployer",
+            "name": "example-deployer",
+            "name_prefix": null,
+            "path": "/",
+            "policy": "{\"Statement\":[{\"Action\":[\"s3:PutObject\"],\"Effect\":\"Allow\",\"Resource\":\"arn:aws:s3:::example-app-assets/*\"}],\"Version\":\"2012-10-17\"}",
+            "policy_id": null,
+            "tags": {},
+            "tags_all": {}
+          },
+          "sensitive_values": {
+            "tags": {},
+            "tags_all": {}
+          },
+          "identity_schema_version": 0,
+          "identity": {
+            "arn": null
+          }
+        },
+        {
+          "address": "aws_iam_policy.orders_reader",
+          "mode": "managed",
+          "type": "aws_iam_policy",
+          "name": "orders_reader",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 0,
+          "values": {
+            "arn": "arn:aws:iam::123456789012:policy/example-orders-reader",
+            "attachment_count": null,
+            "delay_after_policy_creation_in_ms": null,
+            "description": null,
+            "id": "arn:aws:iam::123456789012:policy/example-orders-reader",
+            "name": "example-orders-reader",
+            "name_prefix": null,
+            "path": "/",
+            "policy": "{\"Statement\":[{\"Action\":[\"dynamodb:*\"],\"Effect\":\"Allow\",\"Resource\":\"*\"}],\"Version\":\"2012-10-17\"}",
+            "policy_id": null,
+            "tags": {},
+            "tags_all": {}
+          },
+          "sensitive_values": {
+            "tags": {},
+            "tags_all": {}
+          },
+          "identity_schema_version": 0,
+          "identity": {
+            "arn": null
+          }
+        }
+      ]
+    }
+  },
+  "resource_changes": [
+    {
+      "address": "aws_iam_policy.break_glass",
+      "mode": "managed",
+      "type": "aws_iam_policy",
+      "name": "break_glass",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "delay_after_policy_creation_in_ms": null,
+          "description": null,
+          "name": "example-break-glass",
+          "path": "/",
+          "policy": "{\"Statement\":[{\"Action\":\"*\",\"Effect\":\"Allow\",\"Resource\":\"*\"}],\"Version\":\"2012-10-17\"}",
+          "tags": null
+        },
+        "after_unknown": {
+          "arn": true,
+          "attachment_count": true,
+          "id": true,
+          "name_prefix": true,
+          "policy_id": true,
+          "tags_all": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {
+          "tags_all": {}
+        },
+        "after_identity": {
+          "arn": null
+        }
+      }
+    },
+    {
+      "address": "aws_iam_policy.deployer",
+      "mode": "managed",
+      "type": "aws_iam_policy",
+      "name": "deployer",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "update"
+        ],
+        "before": {
+          "arn": "arn:aws:iam::123456789012:policy/example-deployer",
+          "attachment_count": null,
+          "delay_after_policy_creation_in_ms": null,
+          "description": null,
+          "id": "arn:aws:iam::123456789012:policy/example-deployer",
+          "name": "example-deployer",
+          "name_prefix": null,
+          "path": "/",
+          "policy": "{\"Statement\":[{\"Action\":[\"s3:DeleteObject\",\"s3:PutObject\"],\"Effect\":\"Allow\",\"Resource\":\"arn:aws:s3:::example-app-assets/*\"}],\"Version\":\"2012-10-17\"}",
+          "policy_id": null,
+          "tags": {},
+          "tags_all": {}
+        },
+        "after": {
+          "arn": "arn:aws:iam::123456789012:policy/example-deployer",
+          "attachment_count": null,
+          "delay_after_policy_creation_in_ms": null,
+          "description": null,
+          "id": "arn:aws:iam::123456789012:policy/example-deployer",
+          "name": "example-deployer",
+          "name_prefix": null,
+          "path": "/",
+          "policy": "{\"Statement\":[{\"Action\":[\"s3:PutObject\"],\"Effect\":\"Allow\",\"Resource\":\"arn:aws:s3:::example-app-assets/*\"}],\"Version\":\"2012-10-17\"}",
+          "policy_id": null,
+          "tags": {},
+          "tags_all": {}
+        },
+        "after_unknown": {},
+        "before_sensitive": {
+          "tags": {},
+          "tags_all": {}
+        },
+        "after_sensitive": {
+          "tags": {},
+          "tags_all": {}
+        },
+        "after_identity": {
+          "arn": null
+        }
+      }
+    },
+    {
+      "address": "aws_iam_policy.orders_reader",
+      "mode": "managed",
+      "type": "aws_iam_policy",
+      "name": "orders_reader",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "update"
+        ],
+        "before": {
+          "arn": "arn:aws:iam::123456789012:policy/example-orders-reader",
+          "attachment_count": null,
+          "delay_after_policy_creation_in_ms": null,
+          "description": null,
+          "id": "arn:aws:iam::123456789012:policy/example-orders-reader",
+          "name": "example-orders-reader",
+          "name_prefix": null,
+          "path": "/",
+          "policy": "{\"Statement\":[{\"Action\":[\"dynamodb:GetItem\",\"dynamodb:Query\"],\"Effect\":\"Allow\",\"Resource\":\"arn:aws:dynamodb:eu-central-1:123456789012:table/example-orders\"}],\"Version\":\"2012-10-17\"}",
+          "policy_id": null,
+          "tags": {},
+          "tags_all": {}
+        },
+        "after": {
+          "arn": "arn:aws:iam::123456789012:policy/example-orders-reader",
+          "attachment_count": null,
+          "delay_after_policy_creation_in_ms": null,
+          "description": null,
+          "id": "arn:aws:iam::123456789012:policy/example-orders-reader",
+          "name": "example-orders-reader",
+          "name_prefix": null,
+          "path": "/",
+          "policy": "{\"Statement\":[{\"Action\":[\"dynamodb:*\"],\"Effect\":\"Allow\",\"Resource\":\"*\"}],\"Version\":\"2012-10-17\"}",
+          "policy_id": null,
+          "tags": {},
+          "tags_all": {}
+        },
+        "after_unknown": {},
+        "before_sensitive": {
+          "tags": {},
+          "tags_all": {}
+        },
+        "after_sensitive": {
+          "tags": {},
+          "tags_all": {}
+        },
+        "after_identity": {
+          "arn": null
+        }
+      }
+    }
+  ],
+  "prior_state": {
+    "format_version": "1.0",
+    "terraform_version": "1.17.2",
+    "values": {
+      "root_module": {
+        "resources": [
+          {
+            "address": "aws_iam_policy.deployer",
+            "mode": "managed",
+            "type": "aws_iam_policy",
+            "name": "deployer",
+            "provider_name": "registry.terraform.io/hashicorp/aws",
+            "schema_version": 0,
+            "values": {
+              "arn": "arn:aws:iam::123456789012:policy/example-deployer",
+              "attachment_count": null,
+              "delay_after_policy_creation_in_ms": null,
+              "description": null,
+              "id": "arn:aws:iam::123456789012:policy/example-deployer",
+              "name": "example-deployer",
+              "name_prefix": null,
+              "path": "/",
+              "policy": "{\"Statement\":[{\"Action\":[\"s3:DeleteObject\",\"s3:PutObject\"],\"Effect\":\"Allow\",\"Resource\":\"arn:aws:s3:::example-app-assets/*\"}],\"Version\":\"2012-10-17\"}",
+              "policy_id": null,
+              "tags": {},
+              "tags_all": {}
+            },
+            "sensitive_values": {
+              "tags": {},
+              "tags_all": {}
+            }
+          },
+          {
+            "address": "aws_iam_policy.orders_reader",
+            "mode": "managed",
+            "type": "aws_iam_policy",
+            "name": "orders_reader",
+            "provider_name": "registry.terraform.io/hashicorp/aws",
+            "schema_version": 0,
+            "values": {
+              "arn": "arn:aws:iam::123456789012:policy/example-orders-reader",
+              "attachment_count": null,
+              "delay_after_policy_creation_in_ms": null,
+              "description": null,
+              "id": "arn:aws:iam::123456789012:policy/example-orders-reader",
+              "name": "example-orders-reader",
+              "name_prefix": null,
+              "path": "/",
+              "policy": "{\"Statement\":[{\"Action\":[\"dynamodb:GetItem\",\"dynamodb:Query\"],\"Effect\":\"Allow\",\"Resource\":\"arn:aws:dynamodb:eu-central-1:123456789012:table/example-orders\"}],\"Version\":\"2012-10-17\"}",
+              "policy_id": null,
+              "tags": {},
+              "tags_all": {}
+            },
+            "sensitive_values": {
+              "tags": {},
+              "tags_all": {}
+            }
+          }
+        ]
+      }
+    }
+  },
+  "configuration": {
+    "provider_config": {
+      "aws": {
+        "name": "aws",
+        "full_name": "registry.terraform.io/hashicorp/aws",
+        "version_constraint": "6.73.0",
+        "expressions": {
+          "access_key": {
+            "constant_value": "test"
+          },
+          "endpoints": [
+            {
+              "ec2": {
+                "constant_value": "http://127.0.0.1:1"
+              },
+              "efs": {
+                "constant_value": "http://127.0.0.1:1"
+              },
+              "iam": {
+                "constant_value": "http://127.0.0.1:1"
+              },
+              "rds": {
+                "constant_value": "http://127.0.0.1:1"
+              },
+              "s3": {
+                "constant_value": "http://127.0.0.1:1"
+              },
+              "sts": {
+                "constant_value": "http://127.0.0.1:1"
+              }
+            }
+          ],
+          "region": {
+            "constant_value": "eu-central-1"
+          },
+          "secret_key": {
+            "constant_value": "test"
+          },
+          "skip_credentials_validation": {
+            "constant_value": true
+          },
+          "skip_metadata_api_check": {
+            "constant_value": true
+          },
+          "skip_region_validation": {
+            "constant_value": true
+          },
+          "skip_requesting_account_id": {
+            "constant_value": true
+          }
+        }
+      }
+    },
+    "root_module": {
+      "resources": [
+        {
+          "address": "aws_iam_policy.break_glass",
+          "mode": "managed",
+          "type": "aws_iam_policy",
+          "name": "break_glass",
+          "provider_config_key": "aws",
+          "expressions": {
+            "name": {
+              "constant_value": "example-break-glass"
+            },
+            "policy": {}
+          },
+          "schema_version": 0
+        },
+        {
+          "address": "aws_iam_policy.deployer",
+          "mode": "managed",
+          "type": "aws_iam_policy",
+          "name": "deployer",
+          "provider_config_key": "aws",
+          "expressions": {
+            "name": {
+              "constant_value": "example-deployer"
+            },
+            "policy": {}
+          },
+          "schema_version": 0
+        },
+        {
+          "address": "aws_iam_policy.orders_reader",
+          "mode": "managed",
+          "type": "aws_iam_policy",
+          "name": "orders_reader",
+          "provider_config_key": "aws",
+          "expressions": {
+            "name": {
+              "constant_value": "example-orders-reader"
+            },
+            "policy": {}
+          },
+          "schema_version": 0
+        }
+      ]
+    }
+  },
+  "applyable": true,
+  "complete": true,
+  "errored": false
+}
