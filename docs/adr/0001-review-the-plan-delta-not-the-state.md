@@ -38,6 +38,12 @@ Consequences of this decision for the design:
 
 - The input is `terraform show -json` output and nothing else. The tool does not run
   Terraform, does not read state files, and does not need cloud credentials.
+- "Never runs Terraform" applies to the tool and to the composite GitHub Action, which
+  only consume a plan JSON produced by someone else. The repository's own CI is a
+  different matter: its `fixtures` job runs Terraform offline, with placeholder
+  credentials, read-only permissions, a plain `pull_request` trigger and every service
+  endpoint pointed at a closed local port, so that the sample plans stay reproducible
+  from their source. No secret is involved and nothing is applied.
 - A plan with only `no-op` changes produces no findings, whatever the configuration
   looks like. A misconfiguration that already exists and is not touched by the plan is
   out of scope.

@@ -52,9 +52,8 @@ uv run scripts/generate_fixtures.py --check    # exit 1 if any committed plan is
 The script requires Terraform 1.17.2 on `PATH`, because the Terraform version is
 recorded inside every plan; the provider version is pinned in
 `terraform/_shared/provider.tf` and verified by the lock file next to it. The provider
-is downloaded once per run into `TF_PLUGIN_CACHE_DIR` when that variable is set, or into
-a temporary cache otherwise; setting the variable makes later runs faster. The only
-normalisation applied to Terraform's output is the removal of the top-level
+is downloaded once per run, into a temporary plugin cache that is removed when the run
+ends. The only normalisation applied to Terraform's output is the removal of the top-level
 `timestamp`; the rest is written as returned, pretty-printed.
 
 The `fixtures` job in CI runs `--check`, so a scenario and its plan cannot drift apart.

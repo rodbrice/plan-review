@@ -19,8 +19,8 @@ Usage::
 
 Terraform must be on PATH and its version must match TERRAFORM_VERSION, because the
 version is recorded in every plan and a different one would change every fixture. The
-provider is downloaded once per run: into TF_PLUGIN_CACHE_DIR when that variable is set,
-otherwise into a temporary cache that lives for the duration of the run.
+provider is downloaded once per run, into a temporary plugin cache that lives for the
+duration of the run.
 """
 
 from __future__ import annotations
@@ -167,12 +167,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
-        configured_cache = os.environ.get("TF_PLUGIN_CACHE_DIR")
-        if configured_cache:
-            stale = generate_all(args.check, Path(configured_cache))
-        else:
-            with tempfile.TemporaryDirectory(prefix="plan-review-plugin-cache-") as cache:
-                stale = generate_all(args.check, Path(cache))
+        with tempfile.TemporaryDirectory(prefix="plan-review-plugin-cache-") as cache:
+            stale = generate_all(args.check, Path(cache))
     except GenerationError as error:
         print(f"error: {error}", file=sys.stderr)
         return 2
