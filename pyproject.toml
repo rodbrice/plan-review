@@ -1,0 +1,79 @@
+[project]
+name = "plan-review"
+version = "0.1.0.dev0"
+description = "Review the risk of a Terraform plan before apply: stateful resources destroyed or replaced, IAM widened, ingress opened to the world, public buckets."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.12"
+dependencies = []
+classifiers = [
+  "Development Status :: 2 - Pre-Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Intended Audience :: System Administrators",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Security",
+  "Topic :: Software Development :: Quality Assurance",
+  "Typing :: Typed",
+]
+
+[project.urls]
+Repository = "https://github.com/rodbrice/plan-review"
+
+[dependency-groups]
+dev = [
+  "mypy>=1.14",
+  "pytest>=8.3",
+  "ruff>=0.9",
+]
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/plan_review"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src", "tests", "scripts"]
+
+[tool.ruff.lint]
+select = [
+  "E",   # pycodestyle errors
+  "W",   # pycodestyle warnings
+  "F",   # pyflakes
+  "I",   # isort
+  "N",   # pep8-naming
+  "UP",  # pyupgrade
+  "B",   # bugbear
+  "SIM", # simplify
+  "C4",  # comprehensions
+  "PT",  # pytest style
+  "PTH", # pathlib instead of os.path
+  "RUF", # ruff-specific rules
+  "S",   # bandit
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests use bare asserts by design.
+"tests/**" = ["S101"]
+# The generator runs the Terraform binary chosen by the maintainer; nothing in its
+# arguments comes from untrusted input.
+"scripts/**" = ["S603"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+pretty = true
+files = ["src", "tests", "scripts"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers --strict-config"
+xfail_strict = true

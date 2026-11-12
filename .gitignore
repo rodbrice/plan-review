@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Terraform working files. Scenario inputs under fixtures/terraform/ stay tracked.
+.terraform/
+*.tfplan
+*.tfstate
+*.tfstate.*
+!fixtures/terraform/*/seed.tfstate
+.terraform.lock.hcl
+!fixtures/terraform/_shared/.terraform.lock.hcl
+
+# Editor state
+.vscode/
+.idea/
+.DS_Store
