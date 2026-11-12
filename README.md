@@ -9,10 +9,9 @@ to the whole internet, a bucket that loses its public-access block. It looks at 
 delta between the current state and the planned state, not at the configuration in
 isolation.
 
-**Status: early development.** The command reads a plan and applies rules R1 and R2
-(stateful resources destroyed or replaced) with plain-text output. Rules R3 to R5,
-configuration and the other output formats are not written yet; the milestones below
-describe what comes next.
+**Status: early development.** The command reads a plan, applies rules R1 to R5 and
+prints a text, Markdown or JSON report. A `.plan-review.yml` file can ignore a rule or
+change its severity. The GitHub Action and the first release are the next milestone.
 
 ## Usage
 
@@ -34,14 +33,39 @@ R2 high   aws_db_instance.orders
     object starts empty.
 ```
 
-Exit status: 0 when no finding is blocking, 1 when at least one is (every R1 and R2
-finding is), 2 when the input cannot be read or is not a Terraform plan in JSON format
-1.x, or the arguments are wrong.
+Options:
 
-Findings never include attribute values, so sensitive values in the plan do not reach
-the output. The resource types that count as stateful are listed explicitly in
+- `--format text|markdown|json`: the report format (default `text`). Markdown suits a
+  pull request comment; JSON has a `version` key, the change counts, and one object per
+  finding with `rule`, `title`, `severity`, `blocking`, `address` and `message`.
+- `--config FILE`: the configuration file. Without it, `.plan-review.yml` in the current
+  directory is read if it exists.
+
+Exit status: 0 when no finding is blocking, 1 when at least one is, 2 when the input
+cannot be read or is not a Terraform plan in JSON format 1.x, the configuration file
+cannot be used, or the arguments are wrong. A finding is blocking when its severity is
+`high`.
+
+Findings quote only what a reviewer needs to judge the change (an IAM action and
+resource, a port and CIDR, a public-access setting name) and never a value Terraform
+marks as sensitive. The resource types that count as stateful are listed explicitly in
 [`src/plan_review/stateful.py`](src/plan_review/stateful.py); a type that is not listed
 is not reported by R1 or R2.
+
+## Configuration
+
+```yaml
+# .plan-review.yml
+ignore:
+  - R5          # drop every R5 finding
+severity:
+  R3: medium    # keep R3 findings in the report, but do not fail the command
+```
+
+Severities are `low`, `medium` and `high`; only `high` is blocking, so a severity
+override decides whether a rule fails the command. An unknown key, rule ID or severity,
+or a rule both ignored and given a severity, is an error (exit status 2). The report
+says how many findings the configuration ignored.
 
 ## Why the delta
 
@@ -58,12 +82,28 @@ resource. See [ADR-0001](docs/adr/0001-review-the-plan-delta-not-the-state.md).
 |----|---------|------------------|--------|
 | R1 | A stateful resource is destroyed | the resource exists in the prior state | implemented |
 | R2 | A stateful resource is replaced, in either order, even if the old object is only forgotten (`destroy = false`) | an attribute that forces replacement changed | implemented |
-| R3 | An IAM policy is widened | a new wildcard appears in `Action` or `Resource` | planned |
-| R4 | Ingress is open to the world | a rule now allows `0.0.0.0/0` or `::/0` | planned |
-| R5 | A bucket loses public-access protection | a public-access block is removed or relaxed | planned |
+| R3 | An IAM policy is widened | an `Allow` statement grants an action and resource pair, with a wildcard on either side, that the previous document did not | implemented |
+| R4 | Ingress is open to the world | a rule now allows `0.0.0.0/0` or `::/0` on a port that was not open to it before | implemented |
+| R5 | A bucket is made public | a public-access block setting is turned off or the block is destroyed; a public canned ACL; a bucket policy statement for `Principal: "*"` without a condition | implemented |
 
-Each finding carries the rule ID, a severity, the resource address and a short
-explanation of what changed. Text output exists today; Markdown and JSON are planned.
+Every finding is `high` severity, except two R3 cases reported as `low`: a policy
+document known only after apply, and one that cannot be read. Each finding carries the
+rule ID, a severity, the resource address and a short explanation of what changed.
+
+Scope of R3 to R5, and what they do not do:
+
+- R3 reads `aws_iam_policy`, `aws_iam_role_policy`, `aws_iam_user_policy` and
+  `aws_iam_group_policy`. A wildcard is an action containing `*` or `?`, the resource
+  `*`, an ARN whose resource part is `*`, or `NotAction`/`NotResource` in an `Allow`.
+  Conditions are not evaluated, and policies attached by other means (inline
+  `aws_iam_role` blocks, managed policy attachments) are not read.
+- R4 reads `aws_vpc_security_group_ingress_rule`, `aws_security_group_rule` (ingress
+  only) and the inline `ingress` blocks of `aws_security_group`. A CIDR known only after
+  apply is not reported.
+- R5 reads `aws_s3_bucket_public_access_block`, `aws_s3_account_public_access_block`,
+  `aws_s3_bucket_acl`, the `acl` argument of `aws_s3_bucket` and `aws_s3_bucket_policy`.
+  Explicit ACL grants are not read. Destroying a public-access block is reported even
+  when its bucket is destroyed in the same plan.
 
 ## What this is not
 
@@ -82,7 +122,7 @@ explanation of what changed. Text output exists today; Markdown and JSON are pla
 |-----------|---------|--------|
 | C0 | Project scaffold, CI, sample plans, scope decision | done |
 | C1 | Plan loader, change classification, rules R1 and R2, text output, exit codes | done |
-| C2 | Rules R3 to R5, `.plan-review.yml` configuration, Markdown and JSON output | planned |
+| C2 | Rules R3 to R5, `.plan-review.yml` configuration, Markdown and JSON output | done |
 | C3 | Composite GitHub Action that comments on pull requests, release v0.1 | planned |
 
 ## Development
@@ -122,7 +162,8 @@ are placeholders, and no credential is real.
 ## Project layout
 
 ```
-src/plan_review/      the package: model, actions, stateful, rules, findings, report, cli
+src/plan_review/      the package: model, actions, stateful, iam, exposure, rules, findings,
+                      config, report, cli
 tests/                pytest suite
 fixtures/terraform/   one directory per scenario: main.tf and, when needed, seed.tfstate
 fixtures/plans/       the generated plan JSON files used by the tests
@@ -148,10 +189,13 @@ d'accès public. L'outil examine le delta entre l'état actuel et l'état planif
 la configuration seule.
 
 **État : développement initial.** La commande `plan-review plan.json` lit un plan et
-applique les règles R1 et R2 (ressource avec état détruite ou remplacée), avec une
-sortie texte. Code de sortie : 0 sans constat bloquant, 1 avec au moins un constat
-bloquant, 2 si l'entrée n'est pas un plan utilisable. Les règles R3 à R5, la
-configuration et les autres formats de sortie restent à faire.
+applique les règles R1 à R5 : ressource avec état détruite (R1) ou remplacée (R2),
+politique IAM élargie (R3), règle d'entrée ouverte à tout Internet (R4), bucket rendu
+public (R5). Le rapport est en texte, Markdown ou JSON (`--format`). Un fichier
+`.plan-review.yml` peut ignorer une règle ou changer sa sévérité. Code de sortie : 0
+sans constat bloquant, 1 avec au moins un constat bloquant, 2 si l'entrée ou la
+configuration n'est pas utilisable. L'action GitHub et la première version publiée
+restent à faire.
 
 **Ce que l'outil n'est pas :** ni un remplaçant de Checkov, Trivy ou tfsec, qui
 analysent la configuration finale ; ni un moteur de politiques ; ni un estimateur de

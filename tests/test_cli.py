@@ -174,3 +174,145 @@ def test_wrong_arguments_exit_2(capsys: pytest.CaptureFixture[str]) -> None:
         main([])
     assert raised.value.code == ExitCode.INVALID_INPUT
     assert "PLAN_JSON" in capsys.readouterr().err
+
+
+# Report formats --------------------------------------------------------------------
+
+
+def test_markdown_report(capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(["--format", "markdown", plan_path("iam_widened")]) == ExitCode.BLOCKING
+    assert capsys.readouterr().out == (
+        "## plan-review\n"
+        "\n"
+        "Plan: 1 to create, 2 to update in place (Terraform 1.17.2)\n"
+        "\n"
+        "| Rule | Severity | Resource | Finding |\n"
+        "|------|----------|----------|---------|\n"
+        "| R3 IAM policy widened | **high** | `aws_iam_policy.break_glass` "
+        "| New policy allows: * on *. |\n"
+        "| R3 IAM policy widened | **high** | `aws_iam_policy.orders_reader` "
+        "| Policy widened, now allows: dynamodb:* on *. |\n"
+        "\n"
+        "2 findings, 2 blocking.\n"
+    )
+
+
+def test_markdown_report_without_findings_has_no_table(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    assert main(["--format", "markdown", plan_path("no_changes")]) == ExitCode.OK
+    out = capsys.readouterr().out
+    assert "|" not in out
+    assert out.endswith("No findings.\n")
+
+
+def test_markdown_escapes_table_separators(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    plan = {
+        "format_version": "1.2",
+        "resource_changes": [
+            {
+                "address": 'aws_db_instance.db["a|b"]',
+                "mode": "managed",
+                "type": "aws_db_instance",
+                "name": "db",
+                "change": {"actions": ["delete"], "before": {}, "after": None},
+            }
+        ],
+    }
+    path = tmp_path / "plan.json"
+    path.write_text(json.dumps(plan), encoding="utf-8")
+    main(["--format", "markdown", str(path)])
+    assert '`aws_db_instance.db["a\\|b"]`' in capsys.readouterr().out
+
+
+def test_json_report(capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(["--format", "json", plan_path("exposure")]) == ExitCode.BLOCKING
+    report = json.loads(capsys.readouterr().out)
+    assert report["version"] == 1
+    assert report["terraform_version"] == "1.17.2"
+    assert report["changes"] == {
+        "create": 1,
+        "update": 3,
+        "replace": 0,
+        "delete": 1,
+        "read": 0,
+        "forget": 0,
+        "no-op": 2,
+    }
+    assert [(f["rule"], f["address"]) for f in report["findings"]] == [
+        ("R5", "aws_s3_bucket_public_access_block.assets"),
+        ("R5", "aws_s3_bucket_public_access_block.reports"),
+        ("R4", "aws_vpc_security_group_ingress_rule.ssh"),
+        ("R4", "aws_vpc_security_group_ingress_rule.ssh_ipv6"),
+    ]
+    assert report["findings"][2] == {
+        "rule": "R4",
+        "title": "Ingress open to the world",
+        "severity": "high",
+        "blocking": True,
+        "address": "aws_vpc_security_group_ingress_rule.ssh",
+        "message": "Ingress newly open to the internet: port 22/tcp from 0.0.0.0/0.",
+    }
+    assert report["blocking"] == 4
+    assert report["ignored"] == 0
+
+
+def test_unknown_format_exits_2(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit) as raised:
+        main(["--format", "html", plan_path("no_changes")])
+    assert raised.value.code == ExitCode.INVALID_INPUT
+    assert "invalid choice" in capsys.readouterr().err
+
+
+# Configuration ---------------------------------------------------------------------
+
+
+def test_config_ignores_a_rule_and_lowers_another_to_non_blocking(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    config = tmp_path / "review.yml"
+    config.write_text("ignore: [R5]\nseverity:\n  R4: medium\n", encoding="utf-8")
+    assert main(["--config", str(config), plan_path("exposure")]) == ExitCode.OK
+    out = capsys.readouterr().out
+    assert "R5" not in out
+    assert "R4 medium aws_vpc_security_group_ingress_rule.ssh\n" in out
+    assert out.endswith("2 findings, 0 blocking. 2 ignored by configuration.\n")
+
+
+def test_config_in_the_current_directory_is_read_by_default(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    (tmp_path / ".plan-review.yml").write_text("ignore: [R3]\n", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    assert main(["--format", "json", plan_path("iam_widened")]) == ExitCode.OK
+    report = json.loads(capsys.readouterr().out)
+    assert report["findings"] == []
+    assert report["ignored"] == 2
+
+
+def test_without_a_config_file_nothing_is_ignored(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    assert main([plan_path("iam_widened")]) == ExitCode.BLOCKING
+
+
+def test_unusable_config_exits_2(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    config = tmp_path / "review.yml"
+    config.write_text("ignore: [R9]\n", encoding="utf-8")
+    assert main(["--config", str(config), plan_path("no_changes")]) == ExitCode.INVALID_INPUT
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err.startswith(
+        f"plan-review: error: {config} is not a usable configuration: ignore: unknown rule 'R9'"
+    )
+
+
+def test_missing_config_exits_2(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    missing = tmp_path / "absent.yml"
+    assert main(["--config", str(missing), plan_path("no_changes")]) == ExitCode.INVALID_INPUT
+    assert capsys.readouterr().err == (
+        f"plan-review: error: cannot read {missing}: No such file or directory\n"
+    )
