@@ -18,6 +18,8 @@ from plan_review.actions import ChangeKind, classify
         (["delete", "create"], ChangeKind.REPLACE_DELETE_FIRST),
         (["create", "delete"], ChangeKind.REPLACE_CREATE_FIRST),
         (["forget"], ChangeKind.FORGET),
+        (["create", "forget"], ChangeKind.CREATE_THEN_FORGET),
+        (["forget", "create"], ChangeKind.FORGET_THEN_CREATE),
     ],
 )
 def test_every_documented_action_list_is_classified(actions: list[str], kind: ChangeKind) -> None:
@@ -31,7 +33,14 @@ def test_only_the_two_replacement_orderings_are_replacements() -> None:
 
 @pytest.mark.parametrize(
     "actions",
-    [[], ["destroy"], ["update", "delete"], ["create", "create"], ["delete", "create", "delete"]],
+    [
+        [],
+        ["destroy"],
+        ["update", "delete"],
+        ["create", "create"],
+        ["delete", "forget"],
+        ["delete", "create", "delete"],
+    ],
 )
 def test_unknown_action_lists_are_rejected(actions: list[str]) -> None:
     with pytest.raises(ValueError, match="unsupported action list"):

@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import io
+import json
 from pathlib import Path
 
 import pytest
 
-from plan_review import __version__
 from plan_review.cli import ExitCode, main
 
 PLANS_DIR = Path(__file__).resolve().parents[1] / "fixtures" / "plans"
@@ -93,6 +93,36 @@ def test_reads_the_plan_from_standard_input(
     assert "3 findings, 3 blocking." in capsys.readouterr().out
 
 
+def test_forget_with_create_is_counted_and_does_not_hide_other_findings(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    def resource(address: str, actions: list[str]) -> dict[str, object]:
+        resource_type, name = address.split(".")
+        return {
+            "address": address,
+            "mode": "managed",
+            "type": resource_type,
+            "name": name,
+            "change": {"actions": actions, "before": {}, "after": {}},
+        }
+
+    plan = {
+        "format_version": "1.2",
+        "resource_changes": [
+            resource("aws_instance.moved", ["create", "forget"]),
+            resource("aws_instance.renamed", ["forget", "create"]),
+            resource("aws_db_instance.main", ["delete"]),
+        ],
+    }
+    path = tmp_path / "plan.json"
+    path.write_text(json.dumps(plan), encoding="utf-8")
+    assert main([str(path)]) == ExitCode.BLOCKING
+    out = capsys.readouterr().out
+    assert out.startswith("Plan: 1 to destroy, 2 to forget and recreate\n")
+    assert "R1 high   aws_db_instance.main" in out
+    assert out.endswith("1 finding, 1 blocking.\n")
+
+
 def test_missing_file_exits_2(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     missing = tmp_path / "absent.json"
     assert main([str(missing)]) == ExitCode.INVALID_INPUT
@@ -140,10 +170,3 @@ def test_wrong_arguments_exit_2(capsys: pytest.CaptureFixture[str]) -> None:
         main([])
     assert raised.value.code == ExitCode.INVALID_INPUT
     assert "PLAN_JSON" in capsys.readouterr().err
-
-
-def test_version(capsys: pytest.CaptureFixture[str]) -> None:
-    with pytest.raises(SystemExit) as raised:
-        main(["--version"])
-    assert raised.value.code == 0
-    assert capsys.readouterr().out == f"plan-review {__version__}\n"

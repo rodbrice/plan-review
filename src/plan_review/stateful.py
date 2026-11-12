@@ -38,7 +38,3 @@ STATEFUL_TYPES: dict[str, str] = {
     # Secrets
     "aws_secretsmanager_secret": "the secret value and its versions",
 }
-
-
-def is_stateful(resource_type: str) -> bool:
-    return resource_type in STATEFUL_TYPES

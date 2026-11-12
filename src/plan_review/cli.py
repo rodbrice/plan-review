@@ -16,7 +16,6 @@ from collections.abc import Sequence
 from enum import IntEnum
 from pathlib import Path
 
-from plan_review import __version__
 from plan_review.model import PlanError, load_plan
 from plan_review.report import render_text
 from plan_review.rules import evaluate
@@ -41,7 +40,6 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="PLAN_JSON",
         help="path to the plan JSON, or - to read it from standard input",
     )
-    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     return parser
 
 

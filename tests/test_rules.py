@@ -87,10 +87,20 @@ def test_r1_ignores_the_destruction_of_a_stateless_resource() -> None:
 
 @pytest.mark.parametrize(
     "actions",
-    [["no-op"], ["create"], ["update"], ["read"], ["forget"], ["delete", "create"]],
+    [
+        ["no-op"],
+        ["create"],
+        ["update"],
+        ["read"],
+        ["forget"],
+        ["create", "forget"],
+        ["forget", "create"],
+        ["delete", "create"],
+    ],
 )
 def test_r1_ignores_stateful_resources_that_are_not_destroyed(actions: list[str]) -> None:
-    # forget leaves the object running; a replacement is R2's business.
+    # forget leaves the object running, with or without a new one; a replacement is R2's
+    # business.
     assert r1_stateful_destroyed(make_change(actions)) == []
 
 
@@ -126,7 +136,18 @@ def test_r2_ignores_the_replacement_of_a_stateless_resource() -> None:
     assert r2_stateful_replaced(change) == []
 
 
-@pytest.mark.parametrize("actions", [["no-op"], ["create"], ["update"], ["delete"], ["forget"]])
+@pytest.mark.parametrize(
+    "actions",
+    [
+        ["no-op"],
+        ["create"],
+        ["update"],
+        ["delete"],
+        ["forget"],
+        ["create", "forget"],
+        ["forget", "create"],
+    ],
+)
 def test_r2_ignores_stateful_resources_that_are_not_replaced(actions: list[str]) -> None:
     assert r2_stateful_replaced(make_change(actions)) == []
 

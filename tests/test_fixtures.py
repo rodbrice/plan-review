@@ -30,6 +30,8 @@ KNOWN_ACTIONS = {
     ("delete", "create"),
     ("create", "delete"),
     ("forget",),
+    ("create", "forget"),
+    ("forget", "create"),
 }
 
 

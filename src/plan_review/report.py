@@ -20,6 +20,7 @@ _SUMMARY: tuple[tuple[tuple[ChangeKind, ...], str], ...] = (
     ((ChangeKind.DELETE,), "to destroy"),
     ((ChangeKind.READ,), "to read"),
     ((ChangeKind.FORGET,), "to forget"),
+    ((ChangeKind.CREATE_THEN_FORGET, ChangeKind.FORGET_THEN_CREATE), "to forget and recreate"),
     ((ChangeKind.NO_OP,), "unchanged"),
 )
 

@@ -1,11 +1,14 @@
 """Classification of the action list Terraform records for each resource change.
 
-In the plan JSON, ``resource_changes[].change.actions`` is a short list of strings. A
-replacement is the only case with two entries, and their order says which side runs
-first: ``["delete", "create"]`` destroys the old object before creating the new one
-(the default), ``["create", "delete"]`` creates the new one first
-(``create_before_destroy``). Any other list is not a documented Terraform action and is
-rejected, so a format change surfaces as an error instead of being silently ignored.
+In the plan JSON, ``resource_changes[].change.actions`` is a short list of strings. Two
+entries mean two steps, and their order says which runs first. A replacement is
+``["delete", "create"]`` (destroy the old object, then create the new one; the default)
+or ``["create", "delete"]`` (``create_before_destroy``). A ``removed`` block with
+``destroy = false`` combined with a move or a new instance gives ``["create", "forget"]``
+or ``["forget", "create"]``: the old object is dropped from state and left running while
+a new one is created, so nothing is destroyed. Any other list is not an action Terraform
+emits and is rejected, so a format change surfaces as an error instead of being silently
+ignored.
 """
 
 from __future__ import annotations
@@ -25,6 +28,8 @@ class ChangeKind(Enum):
     REPLACE_DELETE_FIRST = "delete, then create"
     REPLACE_CREATE_FIRST = "create, then delete"
     FORGET = "forget"
+    CREATE_THEN_FORGET = "create, then forget"
+    FORGET_THEN_CREATE = "forget, then create"
 
     @property
     def is_replacement(self) -> bool:
@@ -42,6 +47,8 @@ _KINDS: dict[tuple[str, ...], ChangeKind] = {
     # Terraform 1.7+: a `removed` block with `destroy = false` drops the object from state
     # and leaves it running. Nothing is destroyed.
     ("forget",): ChangeKind.FORGET,
+    ("create", "forget"): ChangeKind.CREATE_THEN_FORGET,
+    ("forget", "create"): ChangeKind.FORGET_THEN_CREATE,
 }
 
 
