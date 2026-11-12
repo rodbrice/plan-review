@@ -8,9 +8,8 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
-- `plan-review` command: reads `terraform show -json` output from a file or standard
-  input, prints a plain-text report and exits 0, 1 (blocking finding) or 2 (unusable
-  input or arguments).
+- `plan-review` command: reads a `terraform show -json` output file, prints a plain-text
+  report and exits 0, 1 (blocking finding) or 2 (unusable input or arguments).
 - Typed model of the plan JSON (pydantic), with checks on `format_version` and on the
   action lists, and helpers for values known only after apply and sensitive values.
 - Classification of each change: no-op, create, read, update, delete, forget, and

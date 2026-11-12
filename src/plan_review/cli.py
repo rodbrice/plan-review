@@ -38,7 +38,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "plan",
         metavar="PLAN_JSON",
-        help="path to the plan JSON, or - to read it from standard input",
+        help="path to the plan JSON written by `terraform show -json PLANFILE`",
     )
     return parser
 
@@ -46,8 +46,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
-        data = _read(args.plan)
-        plan = load_plan(data)
+        plan = load_plan(Path(args.plan).read_bytes())
     except (OSError, PlanError) as error:
         print(f"plan-review: error: {_message(args.plan, error)}", file=sys.stderr)
         return ExitCode.INVALID_INPUT
@@ -59,15 +58,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     return ExitCode.OK
 
 
-def _read(source: str) -> bytes:
-    if source == "-":
-        return sys.stdin.buffer.read()
-    return Path(source).read_bytes()
-
-
-def _message(source: str, error: OSError | PlanError) -> str:
-    name = "standard input" if source == "-" else source
+def _message(path: str, error: OSError | PlanError) -> str:
     if isinstance(error, OSError):
         reason = error.strerror or str(error)
-        return f"cannot read {name}: {reason}"
-    return f"{name} is not a usable Terraform plan: {error}"
+        return f"cannot read {path}: {reason}"
+    return f"{path} is not a usable Terraform plan: {error}"

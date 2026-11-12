@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import io
 import json
 from pathlib import Path
 
@@ -82,15 +81,6 @@ def test_replace_stateful_report(capsys: pytest.CaptureFixture[str]) -> None:
         "\n"
         "3 findings, 3 blocking.\n"
     )
-
-
-def test_reads_the_plan_from_standard_input(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
-    data = (PLANS_DIR / "destroy_stateful.json").read_bytes()
-    monkeypatch.setattr("sys.stdin", io.TextIOWrapper(io.BytesIO(data)))
-    assert main(["-"]) == ExitCode.BLOCKING
-    assert "3 findings, 3 blocking." in capsys.readouterr().out
 
 
 def test_replacements_that_keep_the_old_object_are_counted_and_do_not_hide_other_findings(
@@ -177,14 +167,6 @@ def test_unusable_plan_exits_2(
     assert captured.out == ""
     assert captured.err.startswith(f"plan-review: error: {path} is not a usable Terraform plan: ")
     assert reason in captured.err
-
-
-def test_unusable_standard_input_is_named_in_the_error(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
-    monkeypatch.setattr("sys.stdin", io.TextIOWrapper(io.BytesIO(b"{}")))
-    assert main(["-"]) == ExitCode.INVALID_INPUT
-    assert "standard input is not a usable Terraform plan" in capsys.readouterr().err
 
 
 def test_wrong_arguments_exit_2(capsys: pytest.CaptureFixture[str]) -> None:

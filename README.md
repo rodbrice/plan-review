@@ -19,7 +19,7 @@ describe what comes next.
 ```sh
 terraform plan -out=tfplan
 terraform show -json tfplan > plan.json
-plan-review plan.json          # or: terraform show -json tfplan | plan-review -
+plan-review plan.json
 ```
 
 From a checkout, run it as `uv run plan-review plan.json`. On the sample plan
