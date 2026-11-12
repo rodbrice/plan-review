@@ -189,9 +189,9 @@ def test_markdown_report(capsys: pytest.CaptureFixture[str]) -> None:
         "| Rule | Severity | Resource | Finding |\n"
         "|------|----------|----------|---------|\n"
         "| R3 IAM policy widened | **high** | `aws_iam_policy.break_glass` "
-        "| New policy allows: * on *. |\n"
+        "| New policy allows: \\* on \\*. |\n"
         "| R3 IAM policy widened | **high** | `aws_iam_policy.orders_reader` "
-        "| Policy widened, now allows: dynamodb:* on *. |\n"
+        "| Policy widened, now allows: dynamodb:\\* on \\*. |\n"
         "\n"
         "2 findings, 2 blocking.\n"
     )
@@ -225,6 +225,42 @@ def test_markdown_escapes_table_separators(
     path.write_text(json.dumps(plan), encoding="utf-8")
     main(["--format", "markdown", str(path)])
     assert '`aws_db_instance.db["a\\|b"]`' in capsys.readouterr().out
+
+
+def test_markdown_escapes_wildcards_outside_the_address(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    statement = {
+        "Effect": "Allow",
+        "Action": ["dynamodb:GetItem", "s3:*"],
+        "Resource": ["arn:aws:dynamodb:*:*:table/orders", "arn:aws:s3:::bucket/*"],
+    }
+    plan = {
+        "format_version": "1.2",
+        "resource_changes": [
+            {
+                "address": 'aws_iam_policy.p["*"]',
+                "mode": "managed",
+                "type": "aws_iam_policy",
+                "name": "p",
+                "change": {
+                    "actions": ["create"],
+                    "before": None,
+                    "after": {"policy": json.dumps({"Statement": [statement]})},
+                },
+            }
+        ],
+    }
+    path = tmp_path / "plan.json"
+    path.write_text(json.dumps(plan), encoding="utf-8")
+    assert main(["--format", "markdown", str(path)]) == ExitCode.BLOCKING
+    assert (
+        '| R3 IAM policy widened | **high** | `aws_iam_policy.p["*"]` | New policy allows: '
+        "dynamodb:getitem on arn:aws:dynamodb:\\*:\\*:table/orders, "
+        "dynamodb:getitem on arn:aws:s3:::bucket/\\*, "
+        "s3:\\* on arn:aws:dynamodb:\\*:\\*:table/orders, "
+        "s3:\\* on arn:aws:s3:::bucket/\\*. |\n"
+    ) in capsys.readouterr().out
 
 
 def test_json_report(capsys: pytest.CaptureFixture[str]) -> None:

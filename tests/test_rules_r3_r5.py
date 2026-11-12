@@ -182,6 +182,42 @@ def test_r4_ignores_a_private_rule_and_a_rule_that_was_already_open() -> None:
     assert r4_ingress_open_to_world(ingress_rule(world, {**world, "description": "ssh"})) == []
 
 
+ALL_TRAFFIC: dict[str, Any] = {"ip_protocol": "-1", "from_port": None, "to_port": None}
+
+
+@pytest.mark.parametrize(
+    "before",
+    [
+        {"cidr_ipv4": "0.0.0.0/0", **ALL_TRAFFIC},
+        {"cidr_ipv4": "0.0.0.0/0", "from_port": 0, "to_port": 65535},
+        {"cidr_ipv4": "0.0.0.0/0", "from_port": 20, "to_port": 22},
+    ],
+)
+def test_r4_ignores_a_world_open_rule_that_is_narrowed(before: dict[str, Any]) -> None:
+    narrowed = ingress_rule(before, {"cidr_ipv4": "0.0.0.0/0"})
+    assert r4_ingress_open_to_world(narrowed) == []
+
+
+@pytest.mark.parametrize(
+    ("before", "after", "opened"),
+    [
+        ({"cidr_ipv4": "0.0.0.0/0"}, {"cidr_ipv4": "0.0.0.0/0", "to_port": 25}, "ports 22-25/tcp"),
+        (
+            {"cidr_ipv4": "0.0.0.0/0"},
+            {"cidr_ipv4": "0.0.0.0/0", "ip_protocol": "udp"},
+            "port 22/udp",
+        ),
+        ({"cidr_ipv4": "0.0.0.0/0"}, {"cidr_ipv4": "0.0.0.0/0", **ALL_TRAFFIC}, "all traffic"),
+        ({"cidr_ipv4": "10.0.0.0/8", **ALL_TRAFFIC}, {"cidr_ipv4": "0.0.0.0/0"}, "port 22/tcp"),
+    ],
+)
+def test_r4_flags_a_world_open_rule_that_is_widened(
+    before: dict[str, Any], after: dict[str, Any], opened: str
+) -> None:
+    (finding,) = r4_ingress_open_to_world(ingress_rule(before, after))
+    assert finding.why == f"Ingress newly open to the internet: {opened} from 0.0.0.0/0."
+
+
 def test_r4_ignores_a_world_open_rule_being_deleted() -> None:
     deleted = change(
         "aws_vpc_security_group_ingress_rule",
@@ -228,6 +264,8 @@ def test_r4_reads_inline_ingress_blocks_and_compares_them_with_before() -> None:
     group = change("aws_security_group", ["update"], before=before, after=after)
     (finding,) = r4_ingress_open_to_world(group)
     assert finding.why == "Ingress newly open to the internet: all traffic from 0.0.0.0/0."
+    narrowed = change("aws_security_group", ["update"], before=after, after=before)
+    assert r4_ingress_open_to_world(narrowed) == []
 
 
 def test_r4_names_the_cidr_but_not_sensitive_ports() -> None:

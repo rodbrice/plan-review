@@ -36,6 +36,9 @@ from plan_review.model import ResourceChange, attribute
 WORLD_IPV4 = "0.0.0.0/0"
 WORLD_IPV6 = "::/0"
 
+# Protocol values that stand for every protocol and port.
+ALL_PROTOCOLS = ("-1", "all")
+
 # Canned ACLs that grant access beyond the bucket owner's account.
 PUBLIC_ACLS: dict[str, str] = {
     "public-read": "anyone can list the bucket",
@@ -75,13 +78,28 @@ class _Opening:
             return self.cidr
         return f"{_ports(self.protocol, self.from_port, self.to_port)} from {self.cidr}"
 
+    def covers(self, other: _Opening) -> bool:
+        """Everything ``other`` lets in from its CIDR, this opening already let in."""
+        if self.cidr != other.cidr:
+            return False
+        if self.protocol in ALL_PROTOCOLS:
+            return True
+        if self.protocol != other.protocol:
+            return False
+        return _at_most(self.from_port, other.from_port) and _at_most(other.to_port, self.to_port)
+
 
 def new_open_ingress(change: ResourceChange) -> list[str]:
     """R4: the ports newly reachable from the whole internet, described."""
     attributes = _INGRESS_ATTRIBUTES.get(change.type)
     if attributes is None:
         return []
-    new = _openings(change.type, change.change.after) - _openings(change.type, change.change.before)
+    before = _openings(change.type, change.change.before)
+    new = {
+        opening
+        for opening in _openings(change.type, change.change.after)
+        if not any(old.covers(opening) for old in before)
+    }
     show_ports = not any(change.change.is_sensitive([name]) for name in attributes)
     return [opening.describe(ports=show_ports) for opening in sorted(new)]
 
@@ -203,8 +221,15 @@ def _open(cidrs: list[object], protocol: object, values: dict[str, Any]) -> set[
     }
 
 
+def _at_most(lower: int | None, upper: int | None) -> bool:
+    """``lower <= upper`` where ``None`` is the open end of a range."""
+    if lower is None:
+        return True
+    return upper is not None and lower <= upper
+
+
 def _ports(protocol: str, from_port: int | None, to_port: int | None) -> str:
-    if protocol in ("-1", "all"):
+    if protocol in ALL_PROTOCOLS:
         return "all traffic"
     if protocol in ("icmp", "icmpv6", "1", "58"):
         return protocol

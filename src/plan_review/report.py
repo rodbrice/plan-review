@@ -81,8 +81,8 @@ def render_markdown(plan: Plan, findings: Sequence[Finding], *, ignored: int = 0
             severity = finding.severity.label
             if finding.is_blocking:
                 severity = f"**{severity}**"
-            cells = [rule, severity, f"`{finding.address}`", finding.why]
-            lines.append("| " + " | ".join(_cell(cell) for cell in cells) + " |")
+            cells = [_prose(rule), severity, f"`{_cell(finding.address)}`", _prose(finding.why)]
+            lines.append("| " + " | ".join(cells) + " |")
         lines.append("")
     lines.append(_footer(findings, ignored))
     return "\n".join(lines) + "\n"
@@ -112,6 +112,11 @@ def render_json(plan: Plan, findings: Sequence[Finding], *, ignored: int = 0) ->
 
 def _cell(text: str) -> str:
     return text.replace("\\", "\\\\").replace("|", "\\|").replace("\n", " ")
+
+
+def _prose(text: str) -> str:
+    """A cell outside a code span: a bare ``*`` would otherwise be read as emphasis."""
+    return _cell(text).replace("*", "\\*")
 
 
 def _footer(findings: Sequence[Finding], ignored: int) -> str:
