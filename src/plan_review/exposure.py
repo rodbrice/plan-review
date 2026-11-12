@@ -23,8 +23,15 @@ from dataclasses import dataclass
 from typing import Any
 
 from plan_review.actions import ChangeKind
-from plan_review.iam import PolicyError, Statement, is_public_principal, parse_policy
-from plan_review.model import ResourceChange
+from plan_review.iam import (
+    Grant,
+    PolicyError,
+    Statement,
+    allowed_grants,
+    is_public_principal,
+    parse_policy,
+)
+from plan_review.model import ResourceChange, attribute
 
 WORLD_IPV4 = "0.0.0.0/0"
 WORLD_IPV6 = "::/0"
@@ -85,7 +92,7 @@ def removed_public_access_blocks(change: ResourceChange) -> list[str]:
         return []
     scope = "account" if change.type == "aws_s3_account_public_access_block" else "bucket"
     before = change.change.before
-    was_on = [name for name in PUBLIC_ACCESS_SETTINGS if _get(before, name) is True]
+    was_on = [name for name in PUBLIC_ACCESS_SETTINGS if attribute(before, name) is True]
     if not was_on:
         return []
     kind = change.change.kind
@@ -99,7 +106,7 @@ def removed_public_access_blocks(change: ResourceChange) -> list[str]:
     turned_off = [
         name
         for name in was_on
-        if _get(after, name) is not True and not change.change.is_unknown_after([name])
+        if attribute(after, name) is not True and not change.change.is_unknown_after([name])
     ]
     if not turned_off:
         return []
@@ -110,10 +117,10 @@ def new_public_acl(change: ResourceChange) -> list[str]:
     """R5: a canned ACL that grants access to everyone, where the previous one did not."""
     if change.type not in ("aws_s3_bucket_acl", "aws_s3_bucket"):
         return []
-    after = _get(change.change.after, "acl")
+    after = attribute(change.change.after, "acl")
     if not isinstance(after, str) or after not in PUBLIC_ACLS:
         return []
-    if _get(change.change.before, "acl") == after:
+    if attribute(change.change.before, "acl") == after:
         return []
     return [f"Bucket ACL set to {after}: {PUBLIC_ACLS[after]}."]
 
@@ -122,18 +129,18 @@ def new_public_bucket_statements(change: ResourceChange) -> list[str]:
     """R5: a bucket policy that newly allows anyone, without a condition."""
     if change.type != "aws_s3_bucket_policy":
         return []
-    after = _public_grants(_get(change.change.after, "policy"))
-    new = after - _public_grants(_get(change.change.before, "policy"))
+    after = _public_grants(attribute(change.change.after, "policy"))
+    new = after - _public_grants(attribute(change.change.before, "policy"))
     if not new:
         return []
     if change.change.is_sensitive(["policy"]):
         listed = f"{len(new)} action(s); the document is sensitive and not shown"
     else:
-        listed = ", ".join(f"{action} on {resource}" for action, resource in sorted(new))
+        listed = ", ".join(grant.describe() for grant in sorted(new))
     return [f"Bucket policy now allows anyone (Principal *) without a condition: {listed}."]
 
 
-def _public_grants(text: object) -> set[tuple[str, str]]:
+def _public_grants(text: object) -> set[Grant]:
     if not isinstance(text, str):
         return set()
     try:
@@ -141,11 +148,10 @@ def _public_grants(text: object) -> set[tuple[str, str]]:
     except PolicyError:
         return set()
     return {
-        (action.lower(), resource)
+        grant
         for statement in statements
         if _is_public_allow(statement)
-        for action in statement.actions or ("NotAction",)
-        for resource in statement.resources or ("NotResource",)
+        for grant in allowed_grants(statement)
     }
 
 
@@ -207,7 +213,3 @@ def _ports(protocol: str, from_port: int | None, to_port: int | None) -> str:
     if from_port == to_port:
         return f"port {from_port}/{protocol}"
     return f"ports {from_port}-{to_port}/{protocol}"
-
-
-def _get(values: object, name: str) -> object:
-    return values.get(name) if isinstance(values, dict) else None

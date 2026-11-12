@@ -38,12 +38,6 @@ def test_severity_override_changes_blocking() -> None:
     ]
 
 
-def test_severity_can_raise_a_low_finding_to_blocking() -> None:
-    low = [Finding("R3", Severity.LOW, "aws_iam_policy.b", "Known only after apply.")]
-    (finding,), _ = parse_config("severity: {R3: high}").apply(low)
-    assert finding.is_blocking
-
-
 @pytest.mark.parametrize(
     ("text", "reason"),
     [

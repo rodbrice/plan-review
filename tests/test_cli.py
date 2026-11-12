@@ -12,7 +12,7 @@ from plan_review.cli import ExitCode, main
 PLANS_DIR = Path(__file__).resolve().parents[1] / "fixtures" / "plans"
 
 EXPECTED_EXIT: dict[str, ExitCode] = {
-    "create_baseline": ExitCode.OK,
+    "create_baseline": ExitCode.BLOCKING,
     "no_changes": ExitCode.OK,
     "iam_widened": ExitCode.BLOCKING,
     "exposure": ExitCode.BLOCKING,
@@ -269,23 +269,26 @@ def test_unknown_format_exits_2(capsys: pytest.CaptureFixture[str]) -> None:
 # Configuration ---------------------------------------------------------------------
 
 
+def use_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, text: str) -> None:
+    (tmp_path / ".plan-review.yml").write_text(text, encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+
+
 def test_config_ignores_a_rule_and_lowers_another_to_non_blocking(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    config = tmp_path / "review.yml"
-    config.write_text("ignore: [R5]\nseverity:\n  R4: medium\n", encoding="utf-8")
-    assert main(["--config", str(config), plan_path("exposure")]) == ExitCode.OK
+    use_config(tmp_path, monkeypatch, "ignore: [R5]\nseverity:\n  R4: medium\n")
+    assert main([plan_path("exposure")]) == ExitCode.OK
     out = capsys.readouterr().out
     assert "R5" not in out
     assert "R4 medium aws_vpc_security_group_ingress_rule.ssh\n" in out
     assert out.endswith("2 findings, 0 blocking. 2 ignored by configuration.\n")
 
 
-def test_config_in_the_current_directory_is_read_by_default(
+def test_config_is_read_from_the_current_directory(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    (tmp_path / ".plan-review.yml").write_text("ignore: [R3]\n", encoding="utf-8")
-    monkeypatch.chdir(tmp_path)
+    use_config(tmp_path, monkeypatch, "ignore: [R3]\n")
     assert main(["--format", "json", plan_path("iam_widened")]) == ExitCode.OK
     report = json.loads(capsys.readouterr().out)
     assert report["findings"] == []
@@ -299,20 +302,14 @@ def test_without_a_config_file_nothing_is_ignored(
     assert main([plan_path("iam_widened")]) == ExitCode.BLOCKING
 
 
-def test_unusable_config_exits_2(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    config = tmp_path / "review.yml"
-    config.write_text("ignore: [R9]\n", encoding="utf-8")
-    assert main(["--config", str(config), plan_path("no_changes")]) == ExitCode.INVALID_INPUT
+def test_unusable_config_exits_2(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    use_config(tmp_path, monkeypatch, "ignore: [R9]\n")
+    assert main([plan_path("no_changes")]) == ExitCode.INVALID_INPUT
     captured = capsys.readouterr()
     assert captured.out == ""
     assert captured.err.startswith(
-        f"plan-review: error: {config} is not a usable configuration: ignore: unknown rule 'R9'"
-    )
-
-
-def test_missing_config_exits_2(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    missing = tmp_path / "absent.yml"
-    assert main(["--config", str(missing), plan_path("no_changes")]) == ExitCode.INVALID_INPUT
-    assert capsys.readouterr().err == (
-        f"plan-review: error: cannot read {missing}: No such file or directory\n"
+        "plan-review: error: .plan-review.yml is not a usable configuration: "
+        "ignore: unknown rule 'R9'"
     )

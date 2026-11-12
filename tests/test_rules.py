@@ -217,9 +217,8 @@ def test_r2_states_the_reason_terraform_gives(reason: str | None, expected: str)
 # Plans that must produce nothing ------------------------------------------------------
 
 
-@pytest.mark.parametrize("name", ["no_changes", "create_baseline"])
-def test_plans_without_destruction_or_replacement_give_no_findings(name: str) -> None:
-    assert evaluate(fixture_plan(name)) == []
+def test_a_plan_without_changes_gives_no_findings() -> None:
+    assert evaluate(fixture_plan("no_changes")) == []
 
 
 def test_an_empty_plan_gives_no_findings() -> None:

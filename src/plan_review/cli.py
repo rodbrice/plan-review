@@ -1,7 +1,6 @@
-"""Command-line entry point: ``plan-review [--format FORMAT] [--config FILE] PLAN_JSON``.
+"""Command-line entry point: ``plan-review [--format FORMAT] PLAN_JSON``.
 
-Without ``--config``, the command reads ``.plan-review.yml`` from the current directory
-when that file exists.
+The command reads ``.plan-review.yml`` from the current directory when that file exists.
 
 Exit status:
 
@@ -63,21 +62,18 @@ def build_parser() -> argparse.ArgumentParser:
         default="text",
         help="report format (default: text)",
     )
-    parser.add_argument(
-        "--config",
-        metavar="FILE",
-        help=f"configuration file (default: {CONFIG_FILENAME} in the current directory, if any)",
-    )
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
-        config = _load_config(args.config)
+        config = _load_config()
     except (OSError, ConfigError) as error:
-        path = args.config or CONFIG_FILENAME
-        print(f"plan-review: error: {_message(path, error, 'configuration')}", file=sys.stderr)
+        print(
+            f"plan-review: error: {_message(CONFIG_FILENAME, error, 'configuration')}",
+            file=sys.stderr,
+        )
         return ExitCode.INVALID_INPUT
     try:
         plan = load_plan(Path(args.plan).read_bytes())
@@ -94,13 +90,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     return ExitCode.OK
 
 
-def _load_config(path: str | None) -> Config:
-    if path is None:
-        default = Path(CONFIG_FILENAME)
-        if not default.is_file():
-            return Config()
-        return parse_config(default.read_text(encoding="utf-8"))
-    return parse_config(Path(path).read_text(encoding="utf-8"))
+def _load_config() -> Config:
+    path = Path(CONFIG_FILENAME)
+    if not path.is_file():
+        return Config()
+    return parse_config(path.read_text(encoding="utf-8"))
 
 
 def _message(path: str, error: Exception, what: str) -> str:

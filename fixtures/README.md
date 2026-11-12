@@ -32,7 +32,7 @@ names starting with `example-`, no real credential anywhere.
 
 | Scenario | Prior state | Actions in the plan | Exercises |
 |----------|-------------|---------------------|-----------|
-| `create_baseline` | none | create | a safe plan: nothing destroyed, policy scoped, ingress private, bucket blocked |
+| `create_baseline` | none | create | nothing destroyed, ingress private, bucket blocked; the new policy reads one bucket and its objects (`bucket/*`), which R3 reports as a new wildcard resource |
 | `no_changes` | matches the configuration | no-op | a plan that must produce no finding at all |
 | `destroy_stateful` | database, bucket, file system, policy, ingress rule | delete, no-op | R1: three stateful destructions plus one stateless (the policy) |
 | `replace_stateful` | database, volume, bucket, ingress rule | delete+create, create+delete | R2: both replacement orderings, plus a stateless replacement |

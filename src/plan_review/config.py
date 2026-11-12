@@ -9,9 +9,9 @@ Example::
 
 ``ignore`` drops every finding of the listed rules. ``severity`` replaces the severity of
 every finding of a rule; since only ``high`` findings are blocking, lowering a rule to
-``medium`` keeps it in the report without failing the command, and raising one to
-``high`` makes it blocking. A rule may not be both ignored and given a severity, and an
-unknown key, rule ID or severity is an error rather than a silent no-op.
+``medium`` keeps it in the report without failing the command. A rule may not be both
+ignored and given a severity, and an unknown key, rule ID or severity is an error rather
+than a silent no-op.
 """
 
 from __future__ import annotations

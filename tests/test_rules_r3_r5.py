@@ -58,6 +58,29 @@ def test_r3_on_the_fixture_flags_the_widened_and_the_new_policy_only() -> None:
     assert findings["aws_iam_policy.break_glass"].why == "New policy allows: * on *."
 
 
+def test_r3_on_the_baseline_fixture_flags_the_object_path_wildcard_only() -> None:
+    findings = fixture_findings("create_baseline")
+    assert sorted(findings) == ["aws_iam_policy.assets_reader"]
+    assert findings["aws_iam_policy.assets_reader"].why == (
+        "New policy allows: s3:getobject on arn:aws:s3:::example-app-assets/*, "
+        "s3:listbucket on arn:aws:s3:::example-app-assets/*."
+    )
+
+
+@pytest.mark.parametrize(
+    "widened", ["arn:aws:dynamodb:*:*:table/orders", "arn:aws:iam::123456789012:role/*"]
+)
+def test_r3_flags_a_wildcard_in_any_segment_of_the_resource_arn(widened: str) -> None:
+    scoped = policy("dynamodb:GetItem", "arn:aws:dynamodb:eu-central-1:123456789012:table/orders")
+    (finding,) = r3_iam_widened(iam_update(scoped, policy("dynamodb:GetItem", widened)))
+    assert finding == Finding(
+        "R3",
+        Severity.HIGH,
+        "aws_iam_policy.example",
+        f"Policy widened, now allows: dynamodb:getitem on {widened}.",
+    )
+
+
 def test_r3_ignores_a_narrowed_policy() -> None:
     # The fixture's deployer loses one action and keeps its scoped resource.
     assert "aws_iam_policy.deployer" not in fixture_findings("iam_widened")
@@ -106,22 +129,12 @@ def test_r3_lists_at_most_five_grants() -> None:
     assert finding.why.endswith("service4:* on arn:x and 2 more.")
 
 
-def test_r3_reports_a_policy_known_only_after_apply_as_low() -> None:
+def test_r3_ignores_a_policy_known_only_after_apply_or_unreadable() -> None:
     unknown = change(
         "aws_iam_policy", ["create"], before=None, after={}, after_unknown={"policy": True}
     )
-    (finding,) = r3_iam_widened(unknown)
-    assert finding.severity is Severity.LOW
-    assert not finding.is_blocking
-    assert "known only after apply" in finding.why
-
-
-def test_r3_reports_an_unreadable_policy_as_low() -> None:
-    (finding,) = r3_iam_widened(iam_update(policy("s3:GetObject", "arn:x"), "{}"))
-    assert finding.severity is Severity.LOW
-    assert (
-        finding.why == "The new policy document could not be read: the document has no Statement."
-    )
+    assert r3_iam_widened(unknown) == []
+    assert r3_iam_widened(iam_update(policy("s3:GetObject", "arn:x"), "{}")) == []
 
 
 def test_r3_does_not_quote_a_sensitive_policy() -> None:
@@ -326,6 +339,21 @@ def test_r5_flags_a_bucket_policy_that_allows_anyone() -> None:
     assert finding.why == (
         "Bucket policy now allows anyone (Principal *) without a condition: "
         "s3:getobject on arn:aws:s3:::example-app-assets/*."
+    )
+
+
+def test_r5_describes_not_action_in_a_bucket_policy_as_r3_does() -> None:
+    statement = {
+        "Effect": "Allow",
+        "Principal": "*",
+        "NotAction": "s3:DeleteObject",
+        "Resource": "arn:aws:s3:::example-app-assets/*",
+    }
+    text = json.dumps({"Version": "2012-10-17", "Statement": [statement]})
+    (finding,) = r5_bucket_public(bucket_policy(None, text))
+    assert finding.why == (
+        "Bucket policy now allows anyone (Principal *) without a condition: every action "
+        "except those listed in NotAction on arn:aws:s3:::example-app-assets/*."
     )
 
 

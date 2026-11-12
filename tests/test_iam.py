@@ -95,7 +95,11 @@ def test_wildcard_actions(action: str, expected: bool) -> None:
         ("*", True),
         ("arn:aws:s3:::*", True),
         ("arn:aws:dynamodb:eu-central-1:123456789012:*", True),
-        ("arn:aws:s3:::example-app-assets/*", False),
+        ("arn:aws:dynamodb:*:*:table/orders", True),
+        ("arn:aws:iam::123456789012:role/*", True),
+        ("arn:aws:s3:::example-app-assets/*", True),
+        ("arn:aws:s3:::example-app-assets/report-?.csv", True),
+        ("arn:aws:s3:::example-app-assets", False),
         ("arn:aws:dynamodb:eu-central-1:123456789012:table/orders", False),
     ],
 )
@@ -116,7 +120,7 @@ def test_wide_grants_pair_each_action_with_each_resource() -> None:
 def test_scoped_statements_and_deny_statements_grant_nothing_wide() -> None:
     assert (
         grants(
-            {"Effect": "Allow", "Action": "s3:GetObject", "Resource": "arn:aws:s3:::bucket/*"},
+            {"Effect": "Allow", "Action": "s3:GetObject", "Resource": "arn:aws:s3:::bucket/a.csv"},
             {"Effect": "Deny", "Action": "*", "Resource": "*"},
         )
         == set()

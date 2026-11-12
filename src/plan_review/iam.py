@@ -18,7 +18,8 @@ with a wildcard resource already used by another action.
 What counts as a wildcard:
 
 - an action containing ``*`` or ``?`` (``*``, ``s3:*``, ``s3:Get*``);
-- the resource ``*``, or an ARN whose resource part is ``*`` (``arn:aws:s3:::*``);
+- a resource containing ``*`` or ``?`` in any part of the ARN (``*``, ``arn:aws:s3:::*``,
+  ``arn:aws:dynamodb:*:*:table/orders``, ``arn:aws:iam::123456789012:role/*``);
 - ``NotAction`` or ``NotResource`` in an ``Allow`` statement, which grants everything
   except what is listed.
 
@@ -95,21 +96,25 @@ def parse_policy(text: str) -> list[Statement]:
     return [_statement(item, index) for index, item in enumerate(items)]
 
 
+def allowed_grants(statement: Statement) -> set[Grant]:
+    """Every (action, resource) pair the statement grants; empty unless it is an ``Allow``."""
+    if not statement.allows:
+        return set()
+    actions = statement.actions or ((ALL_ACTIONS_EXCEPT,) if statement.not_actions else ())
+    resources = statement.resources or ((ALL_RESOURCES_EXCEPT,) if statement.not_resources else ())
+    return {
+        Grant(_normalise_action(action), resource) for action in actions for resource in resources
+    }
+
+
 def wide_grants(statements: list[Statement]) -> set[Grant]:
     """Every (action, resource) pair allowed where the action or the resource is a wildcard."""
-    grants: set[Grant] = set()
-    for statement in statements:
-        if not statement.allows:
-            continue
-        actions = statement.actions or ((ALL_ACTIONS_EXCEPT,) if statement.not_actions else ())
-        resources = statement.resources or (
-            (ALL_RESOURCES_EXCEPT,) if statement.not_resources else ()
-        )
-        for action in actions:
-            for resource in resources:
-                if is_wildcard_action(action) or is_wildcard_resource(resource):
-                    grants.add(Grant(_normalise_action(action), resource))
-    return grants
+    return {
+        grant
+        for statement in statements
+        for grant in allowed_grants(statement)
+        if is_wildcard_action(grant.action) or is_wildcard_resource(grant.resource)
+    }
 
 
 def is_wildcard_action(action: str) -> bool:
@@ -117,10 +122,7 @@ def is_wildcard_action(action: str) -> bool:
 
 
 def is_wildcard_resource(resource: str) -> bool:
-    if resource in ("*", ALL_RESOURCES_EXCEPT):
-        return True
-    parts = resource.split(":", 5)
-    return len(parts) == 6 and parts[0] == "arn" and parts[5] == "*"
+    return resource == ALL_RESOURCES_EXCEPT or "*" in resource or "?" in resource
 
 
 def is_public_principal(statement: Statement) -> bool:

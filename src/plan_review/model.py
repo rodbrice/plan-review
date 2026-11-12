@@ -98,6 +98,11 @@ class Plan(_Model):
         return version
 
 
+def attribute(values: JsonValue, name: str) -> JsonValue:
+    """The top-level attribute ``name`` of a ``before`` or ``after`` object; ``None`` if absent."""
+    return values.get(name) if isinstance(values, dict) else None
+
+
 def is_marked(marks: JsonValue, path: Sequence[PathStep]) -> bool:
     """Follow ``path`` through an ``after_unknown`` structure.
 

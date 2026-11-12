@@ -38,8 +38,8 @@ Options:
 - `--format text|markdown|json`: the report format (default `text`). Markdown suits a
   pull request comment; JSON has a `version` key, the change counts, and one object per
   finding with `rule`, `title`, `severity`, `blocking`, `address` and `message`.
-- `--config FILE`: the configuration file. Without it, `.plan-review.yml` in the current
-  directory is read if it exists.
+
+The command reads `.plan-review.yml` from the current directory when that file exists.
 
 Exit status: 0 when no finding is blocking, 1 when at least one is, 2 when the input
 cannot be read or is not a Terraform plan in JSON format 1.x, the configuration file
@@ -86,17 +86,18 @@ resource. See [ADR-0001](docs/adr/0001-review-the-plan-delta-not-the-state.md).
 | R4 | Ingress is open to the world | a rule now allows `0.0.0.0/0` or `::/0` on a port that was not open to it before | implemented |
 | R5 | A bucket is made public | a public-access block setting is turned off or the block is destroyed; a public canned ACL; a bucket policy statement for `Principal: "*"` without a condition | implemented |
 
-Every finding is `high` severity, except two R3 cases reported as `low`: a policy
-document known only after apply, and one that cannot be read. Each finding carries the
-rule ID, a severity, the resource address and a short explanation of what changed.
+Every finding is `high` severity. Each finding carries the rule ID, a severity, the
+resource address and a short explanation of what changed.
 
 Scope of R3 to R5, and what they do not do:
 
 - R3 reads `aws_iam_policy`, `aws_iam_role_policy`, `aws_iam_user_policy` and
-  `aws_iam_group_policy`. A wildcard is an action containing `*` or `?`, the resource
-  `*`, an ARN whose resource part is `*`, or `NotAction`/`NotResource` in an `Allow`.
-  Conditions are not evaluated, and policies attached by other means (inline
-  `aws_iam_role` blocks, managed policy attachments) are not read.
+  `aws_iam_group_policy`. A wildcard is an action or a resource containing `*` or `?`
+  anywhere (`s3:Get*`, `arn:aws:dynamodb:*:*:table/orders`,
+  `arn:aws:iam::123456789012:role/*`, `arn:aws:s3:::bucket/*`), or
+  `NotAction`/`NotResource` in an `Allow`. Conditions are not evaluated, a policy known
+  only after apply or that cannot be parsed gives no finding, and policies attached by
+  other means (inline `aws_iam_role` blocks, managed policy attachments) are not read.
 - R4 reads `aws_vpc_security_group_ingress_rule`, `aws_security_group_rule` (ingress
   only) and the inline `ingress` blocks of `aws_security_group`. A CIDR known only after
   apply is not reported.

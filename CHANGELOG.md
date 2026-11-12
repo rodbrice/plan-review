@@ -9,17 +9,16 @@ All notable changes to this project are documented here. The format follows
 ### Added
 
 - Rule R3: an IAM policy grants a new wildcard action or resource, compared between the
-  document before and after the change; a policy known only after apply or unreadable is
-  reported at low severity. IAM policy parser that normalises the shorthand forms of the
-  policy language.
+  document before and after the change. IAM policy parser that normalises the shorthand
+  forms of the policy language.
 - Rule R4: an ingress rule is newly open to `0.0.0.0/0` or `::/0`, for
   `aws_vpc_security_group_ingress_rule`, `aws_security_group_rule` and the inline
   ingress blocks of `aws_security_group`.
 - Rule R5: a bucket or account public-access setting is turned off or its block
   destroyed, a public canned ACL is set, or a bucket policy newly allows anyone without
   a condition.
-- `.plan-review.yml` configuration (or `--config FILE`): ignore rules and override
-  their severity; the report counts the ignored findings.
+- `.plan-review.yml` configuration: ignore rules and override their severity; the
+  report counts the ignored findings.
 - `--format markdown` and `--format json` reports.
 - Findings may quote IAM actions and resources, ports and CIDRs, but never a value the
   plan marks as sensitive.

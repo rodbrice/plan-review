@@ -32,7 +32,7 @@ from plan_review.exposure import (
 )
 from plan_review.findings import Finding, Severity
 from plan_review.iam import Grant, PolicyError, parse_policy, wide_grants
-from plan_review.model import PathStep, Plan, ResourceChange
+from plan_review.model import PathStep, Plan, ResourceChange, attribute
 from plan_review.stateful import STATEFUL_TYPES
 
 Rule = Callable[[ResourceChange], list[Finding]]
@@ -103,24 +103,17 @@ _LISTED = 5
 
 def r3_iam_widened(change: ResourceChange) -> list[Finding]:
     """R3: an IAM policy grants a wildcard action or resource it did not grant before."""
-    attribute = IAM_POLICY_ATTRIBUTE.get(change.type)
-    if attribute is None or not _has_after(change):
+    key = IAM_POLICY_ATTRIBUTE.get(change.type)
+    if key is None or not _has_after(change):
         return []
-    after = _attribute(change.change.after, attribute)
-    if change.change.is_unknown_after([attribute]):
-        why = "The policy document is known only after apply, so it was not compared."
-        return [Finding("R3", Severity.LOW, change.address, why)]
-    if not isinstance(after, str):
-        return []
-    try:
-        granted = wide_grants(parse_policy(after))
-    except PolicyError as error:
-        why = f"The new policy document could not be read: {error}."
-        return [Finding("R3", Severity.LOW, change.address, why)]
-    new = granted - _grants_before(change, attribute)
+    # A replacement starts a new object, but the access it grants is what matters, so
+    # the old document is still the baseline.
+    new = _wide_grants(attribute(change.change.after, key)) - _wide_grants(
+        attribute(change.change.before, key)
+    )
     if not new:
         return []
-    if change.change.is_sensitive([attribute]):
+    if change.change.is_sensitive([key]):
         detail = f"{len(new)} new wildcard grant(s); the document is sensitive and not shown"
     else:
         detail = _listing([grant.describe() for grant in sorted(new)])
@@ -185,18 +178,12 @@ def _has_after(change: ResourceChange) -> bool:
     )
 
 
-def _attribute(values: object, name: str) -> object:
-    return values.get(name) if isinstance(values, dict) else None
-
-
-def _grants_before(change: ResourceChange, attribute: str) -> set[Grant]:
-    # A replacement starts a new object, but the access it grants is what matters, so
-    # the old document is still the baseline.
-    before = _attribute(change.change.before, attribute)
-    if not isinstance(before, str):
+def _wide_grants(text: object) -> set[Grant]:
+    """The wildcard grants of a policy document; none if it is missing, unknown or unreadable."""
+    if not isinstance(text, str):
         return set()
     try:
-        return wide_grants(parse_policy(before))
+        return wide_grants(parse_policy(text))
     except PolicyError:
         return set()
 
