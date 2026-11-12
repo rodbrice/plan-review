@@ -12,15 +12,14 @@ from plan_review.model import Plan
 
 WIDTH = 88
 
-# Summary order and wording; both replacement orderings count as "to replace".
+# Summary order and wording; every replacement kind counts as "to replace".
 _SUMMARY: tuple[tuple[tuple[ChangeKind, ...], str], ...] = (
     ((ChangeKind.CREATE,), "to create"),
     ((ChangeKind.UPDATE,), "to update in place"),
-    ((ChangeKind.REPLACE_DELETE_FIRST, ChangeKind.REPLACE_CREATE_FIRST), "to replace"),
+    (tuple(kind for kind in ChangeKind if kind.is_replacement), "to replace"),
     ((ChangeKind.DELETE,), "to destroy"),
     ((ChangeKind.READ,), "to read"),
     ((ChangeKind.FORGET,), "to forget"),
-    ((ChangeKind.CREATE_THEN_FORGET, ChangeKind.FORGET_THEN_CREATE), "to forget and recreate"),
     ((ChangeKind.NO_OP,), "unchanged"),
 )
 

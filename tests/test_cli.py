@@ -93,7 +93,7 @@ def test_reads_the_plan_from_standard_input(
     assert "3 findings, 3 blocking." in capsys.readouterr().out
 
 
-def test_forget_with_create_is_counted_and_does_not_hide_other_findings(
+def test_replacements_that_keep_the_old_object_are_counted_and_do_not_hide_other_findings(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     def resource(address: str, actions: list[str]) -> dict[str, object]:
@@ -109,8 +109,8 @@ def test_forget_with_create_is_counted_and_does_not_hide_other_findings(
     plan = {
         "format_version": "1.2",
         "resource_changes": [
-            resource("aws_instance.moved", ["create", "forget"]),
-            resource("aws_instance.renamed", ["forget", "create"]),
+            resource("aws_instance.web", ["forget", "create"]),
+            resource("aws_instance.api", ["create", "forget"]),
             resource("aws_db_instance.main", ["delete"]),
         ],
     }
@@ -118,9 +118,31 @@ def test_forget_with_create_is_counted_and_does_not_hide_other_findings(
     path.write_text(json.dumps(plan), encoding="utf-8")
     assert main([str(path)]) == ExitCode.BLOCKING
     out = capsys.readouterr().out
-    assert out.startswith("Plan: 1 to destroy, 2 to forget and recreate\n")
+    assert out.startswith("Plan: 2 to replace, 1 to destroy\n")
     assert "R1 high   aws_db_instance.main" in out
     assert out.endswith("1 finding, 1 blocking.\n")
+
+
+@pytest.mark.parametrize(
+    ("actions", "order"),
+    [(["forget", "create"], "forget, then create"), (["create", "forget"], "create, then forget")],
+)
+def test_stateful_replacement_that_keeps_the_old_object_is_blocking(
+    actions: list[str], order: str, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    plan = json.loads((PLANS_DIR / "replace_stateful.json").read_text(encoding="utf-8"))
+    orders = next(
+        rc for rc in plan["resource_changes"] if rc["address"] == "aws_db_instance.orders"
+    )
+    orders["change"]["actions"] = actions
+    path = tmp_path / "plan.json"
+    path.write_text(json.dumps(plan), encoding="utf-8")
+    assert main([str(path)]) == ExitCode.BLOCKING
+    out = capsys.readouterr().out
+    assert out.startswith("Plan: 4 to replace (Terraform 1.17.2)\n")
+    assert f"R2 high   aws_db_instance.orders\n    Replaced ({order})" in out
+    assert "left running rather than destroyed" in out
+    assert out.endswith("3 findings, 3 blocking.\n")
 
 
 def test_missing_file_exits_2(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

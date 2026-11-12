@@ -99,8 +99,8 @@ def test_r1_ignores_the_destruction_of_a_stateless_resource() -> None:
     ],
 )
 def test_r1_ignores_stateful_resources_that_are_not_destroyed(actions: list[str]) -> None:
-    # forget leaves the object running, with or without a new one; a replacement is R2's
-    # business.
+    # forget leaves the object running; a replacement, however the old object is handled,
+    # is R2's business.
     assert r1_stateful_destroyed(make_change(actions)) == []
 
 
@@ -130,24 +130,40 @@ def test_r2_finding_names_the_order_and_the_attribute_that_forced_it() -> None:
     assert all(f.severity is Severity.HIGH for f in by_address.values())
 
 
+@pytest.mark.parametrize(
+    ("actions", "order"),
+    [(["forget", "create"], "forget, then create"), (["create", "forget"], "create, then forget")],
+)
+def test_r2_flags_a_replacement_that_keeps_the_old_object(actions: list[str], order: str) -> None:
+    # lifecycle { destroy = false } on a resource that must be replaced: the old database is
+    # left running outside state and the managed one starts empty.
+    plan = fixture_dict("replace_stateful")
+    orders = next(
+        rc for rc in plan["resource_changes"] if rc["address"] == "aws_db_instance.orders"
+    )
+    orders["change"]["actions"] = actions
+    findings = evaluate(load_plan(json.dumps(plan)))
+    assert [(f.rule_id, f.address) for f in findings] == [
+        ("R2", "aws_db_instance.orders"),
+        ("R2", "aws_ebs_volume.data"),
+        ("R2", "aws_s3_bucket.logs"),
+    ]
+    assert findings[0].severity is Severity.HIGH
+    assert findings[0].why == (
+        f"Replaced ({order}), because an attribute that cannot be updated in place changed. "
+        "Forced by: engine. It holds the databases on the instance; the old object is "
+        "removed from Terraform state and left running rather than destroyed, and the "
+        "managed object at this address starts empty."
+    )
+
+
 def test_r2_ignores_the_replacement_of_a_stateless_resource() -> None:
     # replace_stateful also replaces the ingress rule, which holds no data.
     change = make_change(["delete", "create"], resource_type="aws_vpc_security_group_ingress_rule")
     assert r2_stateful_replaced(change) == []
 
 
-@pytest.mark.parametrize(
-    "actions",
-    [
-        ["no-op"],
-        ["create"],
-        ["update"],
-        ["delete"],
-        ["forget"],
-        ["create", "forget"],
-        ["forget", "create"],
-    ],
-)
+@pytest.mark.parametrize("actions", [["no-op"], ["create"], ["update"], ["delete"], ["forget"]])
 def test_r2_ignores_stateful_resources_that_are_not_replaced(actions: list[str]) -> None:
     assert r2_stateful_replaced(make_change(actions)) == []
 

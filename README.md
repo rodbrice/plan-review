@@ -57,7 +57,7 @@ resource. See [ADR-0001](docs/adr/0001-review-the-plan-delta-not-the-state.md).
 | ID | Finding | Compared against | Status |
 |----|---------|------------------|--------|
 | R1 | A stateful resource is destroyed | the resource exists in the prior state | implemented |
-| R2 | A stateful resource is replaced, in either order | an attribute that forces replacement changed | implemented |
+| R2 | A stateful resource is replaced, in either order, even if the old object is only forgotten (`destroy = false`) | an attribute that forces replacement changed | implemented |
 | R3 | An IAM policy is widened | a new wildcard appears in `Action` or `Resource` | planned |
 | R4 | Ingress is open to the world | a rule now allows `0.0.0.0/0` or `::/0` | planned |
 | R5 | A bucket loses public-access protection | a public-access block is removed or relaxed | planned |

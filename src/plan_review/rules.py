@@ -6,7 +6,8 @@ Rules only look at what the plan says will happen (``change.actions``,
 attribute value into a finding, so sensitive values cannot leak into the report.
 
 - R1: a stateful resource is destroyed.
-- R2: a stateful resource is replaced, in either order.
+- R2: a stateful resource is replaced, in either order, including when
+  ``lifecycle { destroy = false }`` keeps the old object running instead of destroying it.
 
 Data sources (``mode = "data"``) are read, never destroyed, so the rules skip them.
 """
@@ -63,7 +64,14 @@ def r2_stateful_replaced(change: ResourceChange) -> list[Finding]:
             for path in change.change.replace_paths
         )
         why += f" Forced by: {forced_by}."
-    why += f" It holds {lost}, and the new object starts empty."
+    if kind.keeps_old_object:
+        why += (
+            f" It holds {lost}; the old object is removed from Terraform state and left "
+            "running rather than destroyed, and the managed object at this address starts "
+            "empty."
+        )
+    else:
+        why += f" It holds {lost}, and the new object starts empty."
     return [Finding("R2", Severity.HIGH, change.address, why)]
 
 
