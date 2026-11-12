@@ -14,8 +14,8 @@ PLANS_DIR = Path(__file__).resolve().parents[1] / "fixtures" / "plans"
 EXPECTED_EXIT: dict[str, ExitCode] = {
     "create_baseline": ExitCode.OK,
     "no_changes": ExitCode.OK,
-    "iam_widened": ExitCode.OK,  # R3 lands in a later milestone
-    "exposure": ExitCode.OK,  # R4 and R5 land in a later milestone
+    "iam_widened": ExitCode.BLOCKING,
+    "exposure": ExitCode.BLOCKING,
     "destroy_stateful": ExitCode.BLOCKING,
     "replace_stateful": ExitCode.BLOCKING,
 }

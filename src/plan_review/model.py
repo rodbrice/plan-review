@@ -11,8 +11,8 @@ Two details of the format matter for a reviewer:
   missing or ``null`` value in ``after`` as "the attribute is removed" without checking
   ``after_unknown``.
 - Sensitive values are present in clear text in ``before`` and ``after``; the plan only
-  marks where they are. The rules and reporters of this package never copy an attribute
-  value into their output, so the model does not load those marks.
+  marks where they are, in ``before_sensitive`` and ``after_sensitive``. Rules quote an
+  attribute value in a finding only when neither side marks it sensitive.
 """
 
 from __future__ import annotations
@@ -44,6 +44,8 @@ class Change(_Model):
     before: JsonValue = None
     after: JsonValue = None
     after_unknown: JsonValue = None
+    before_sensitive: JsonValue = None
+    after_sensitive: JsonValue = None
     replace_paths: tuple[tuple[PathStep, ...], ...] = ()
 
     @field_validator("actions")
@@ -59,6 +61,12 @@ class Change(_Model):
     def is_unknown_after(self, path: Sequence[PathStep]) -> bool:
         """True if the value at ``path`` in ``after`` is only known after apply."""
         return is_marked(self.after_unknown, path)
+
+    def is_sensitive(self, path: Sequence[PathStep]) -> bool:
+        """True if either side marks the value at ``path``, or anything under it, sensitive."""
+        return _marks_anything(self.before_sensitive, path) or _marks_anything(
+            self.after_sensitive, path
+        )
 
 
 class ResourceChange(_Model):
@@ -111,6 +119,30 @@ def is_marked(marks: JsonValue, path: Sequence[PathStep]) -> bool:
         else:
             return False
     return node is True
+
+
+def _marks_anything(marks: JsonValue, path: Sequence[PathStep]) -> bool:
+    node = marks
+    for step in path:
+        if node is True:
+            return True
+        if isinstance(node, dict) and isinstance(step, str):
+            node = node.get(step)
+        elif isinstance(node, list) and isinstance(step, int) and 0 <= step < len(node):
+            node = node[step]
+        else:
+            return False
+    return _contains_true(node)
+
+
+def _contains_true(node: JsonValue) -> bool:
+    if node is True:
+        return True
+    if isinstance(node, dict):
+        return any(_contains_true(value) for value in node.values())
+    if isinstance(node, list):
+        return any(_contains_true(value) for value in node)
+    return False
 
 
 def load_plan(data: str | bytes) -> Plan:
