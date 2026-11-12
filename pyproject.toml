@@ -6,7 +6,9 @@ readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+  "pydantic>=2.10",
+]
 classifiers = [
   "Development Status :: 2 - Pre-Alpha",
   "Environment :: Console",
@@ -19,6 +21,9 @@ classifiers = [
   "Topic :: Software Development :: Quality Assurance",
   "Typing :: Typed",
 ]
+
+[project.scripts]
+plan-review = "plan_review.cli:main"
 
 [project.urls]
 Repository = "https://github.com/rodbrice/plan-review"
@@ -71,6 +76,7 @@ python_version = "3.12"
 strict = true
 warn_unreachable = true
 pretty = true
+plugins = ["pydantic.mypy"]
 files = ["src", "tests", "scripts"]
 
 [tool.pytest.ini_options]

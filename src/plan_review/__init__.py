@@ -4,8 +4,15 @@ The tool reads the JSON produced by ``terraform show -json`` and reports changes
 deserve a second look before ``terraform apply``: stateful resources destroyed or
 replaced, IAM policies widened, ingress opened to the world, buckets made public.
 
-This package is at the scaffolding stage. Parsing, rules, reporters and the GitHub
-Action land in later milestones; see the README and ``docs/adr/`` for the plan.
+Modules, in the order data flows through them:
+
+- ``model``: the typed plan JSON and ``load_plan``;
+- ``actions``: classification of each change (create, update, delete, replace, ...);
+- ``stateful``: the explicit list of resource types that hold data;
+- ``rules``: the rules, pure functions from a resource change to findings;
+- ``findings``: the ``Finding`` type and severities;
+- ``report``: the text report;
+- ``cli``: argument parsing and exit status.
 """
 
 __version__ = "0.1.0.dev0"
