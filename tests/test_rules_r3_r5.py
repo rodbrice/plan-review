@@ -198,11 +198,39 @@ def test_r4_ignores_a_world_open_rule_that_is_narrowed(before: dict[str, Any]) -
     assert r4_ingress_open_to_world(narrowed) == []
 
 
-def test_r4_ignores_all_icmp_narrowed_to_one_type_but_not_the_reverse() -> None:
-    all_icmp = {"cidr_ipv4": "0.0.0.0/0", "ip_protocol": "icmp", "from_port": -1, "to_port": -1}
-    echo_request = {**all_icmp, "from_port": 8, "to_port": 0}
-    assert r4_ingress_open_to_world(ingress_rule(all_icmp, echo_request)) == []
-    (finding,) = r4_ingress_open_to_world(ingress_rule(echo_request, all_icmp))
+def icmp(icmp_type: int, code: int) -> dict[str, Any]:
+    return {
+        "cidr_ipv4": "0.0.0.0/0",
+        "ip_protocol": "icmp",
+        "from_port": icmp_type,
+        "to_port": code,
+    }
+
+
+@pytest.mark.parametrize(
+    ("before", "after"),
+    [(icmp(-1, -1), icmp(8, 0)), (icmp(8, -1), icmp(8, 0)), (icmp(8, 0), icmp(8, 0))],
+)
+def test_r4_ignores_icmp_narrowed_to_a_type_or_code_already_allowed(
+    before: dict[str, Any], after: dict[str, Any]
+) -> None:
+    assert r4_ingress_open_to_world(ingress_rule(before, after)) == []
+
+
+@pytest.mark.parametrize(
+    ("before", "after"),
+    [
+        (icmp(3, 4), icmp(8, -1)),
+        (icmp(3, 4), icmp(8, 0)),
+        (icmp(0, -1), icmp(8, -1)),
+        (icmp(8, 0), icmp(8, -1)),
+        (icmp(8, 0), icmp(-1, -1)),
+    ],
+)
+def test_r4_compares_icmp_type_and_code_field_by_field_not_as_a_range(
+    before: dict[str, Any], after: dict[str, Any]
+) -> None:
+    (finding,) = r4_ingress_open_to_world(ingress_rule(before, after))
     assert finding.why == "Ingress newly open to the internet: icmp from 0.0.0.0/0."
 
 

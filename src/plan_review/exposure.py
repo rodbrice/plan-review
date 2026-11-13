@@ -89,8 +89,10 @@ class _Opening:
             return True
         if self.protocol != other.protocol:
             return False
-        if self.protocol in ICMP_PROTOCOLS and self.from_port == self.to_port == -1:
-            return True
+        if self.protocol in ICMP_PROTOCOLS:
+            return _any_or_same(self.from_port, other.from_port) and _any_or_same(
+                self.to_port, other.to_port
+            )
         return _at_most(self.from_port, other.from_port) and _at_most(other.to_port, self.to_port)
 
 
@@ -229,6 +231,11 @@ def _open(cidrs: list[object], protocol: object, values: dict[str, Any]) -> set[
         for cidr in cidrs
         if cidr in (WORLD_IPV4, WORLD_IPV6)
     }
+
+
+def _any_or_same(before: int | None, after: int | None) -> bool:
+    """An ICMP type or code already allowed: ``-1`` stands for any, else they must match."""
+    return before == -1 or before == after
 
 
 def _at_most(lower: int | None, upper: int | None) -> bool:
