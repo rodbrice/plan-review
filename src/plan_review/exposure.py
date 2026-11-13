@@ -38,12 +38,15 @@ WORLD_IPV6 = "::/0"
 
 # Protocol values that stand for every protocol and port.
 ALL_PROTOCOLS = ("-1", "all")
+# Protocol values whose ports are an ICMP type and code; -1 and -1 stand for all of them.
+ICMP_PROTOCOLS = ("icmp", "icmpv6", "1", "58")
 
-# Canned ACLs that grant access beyond the bucket owner's account.
+# Canned ACLs that grant access beyond the bucket owner's account, narrowest first:
+# AllUsers includes AuthenticatedUsers.
 PUBLIC_ACLS: dict[str, str] = {
+    "authenticated-read": "any AWS account can list the bucket",
     "public-read": "anyone can list the bucket",
     "public-read-write": "anyone can list the bucket and write objects to it",
-    "authenticated-read": "any AWS account can list the bucket",
 }
 
 PUBLIC_ACCESS_BLOCK_TYPES = (
@@ -86,6 +89,8 @@ class _Opening:
             return True
         if self.protocol != other.protocol:
             return False
+        if self.protocol in ICMP_PROTOCOLS and self.from_port == self.to_port == -1:
+            return True
         return _at_most(self.from_port, other.from_port) and _at_most(other.to_port, self.to_port)
 
 
@@ -132,13 +137,14 @@ def removed_public_access_blocks(change: ResourceChange) -> list[str]:
 
 
 def new_public_acl(change: ResourceChange) -> list[str]:
-    """R5: a canned ACL that grants access to everyone, where the previous one did not."""
+    """R5: a canned ACL that grants access to everyone, wider than the previous one."""
     if change.type not in ("aws_s3_bucket_acl", "aws_s3_bucket"):
         return []
     after = attribute(change.change.after, "acl")
     if not isinstance(after, str) or after not in PUBLIC_ACLS:
         return []
-    if attribute(change.change.before, "acl") == after:
+    before = attribute(change.change.before, "acl")
+    if isinstance(before, str) and before in PUBLIC_ACLS and _acl_rank(before) >= _acl_rank(after):
         return []
     return [f"Bucket ACL set to {after}: {PUBLIC_ACLS[after]}."]
 
@@ -156,6 +162,10 @@ def new_public_bucket_statements(change: ResourceChange) -> list[str]:
     else:
         listed = ", ".join(grant.describe() for grant in sorted(new))
     return [f"Bucket policy now allows anyone (Principal *) without a condition: {listed}."]
+
+
+def _acl_rank(acl: str) -> int:
+    return list(PUBLIC_ACLS).index(acl)
 
 
 def _public_grants(text: object) -> set[Grant]:
@@ -231,7 +241,7 @@ def _at_most(lower: int | None, upper: int | None) -> bool:
 def _ports(protocol: str, from_port: int | None, to_port: int | None) -> str:
     if protocol in ALL_PROTOCOLS:
         return "all traffic"
-    if protocol in ("icmp", "icmpv6", "1", "58"):
+    if protocol in ICMP_PROTOCOLS:
         return protocol
     if from_port is None or to_port is None:
         return protocol or "traffic"

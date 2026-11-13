@@ -198,6 +198,14 @@ def test_r4_ignores_a_world_open_rule_that_is_narrowed(before: dict[str, Any]) -
     assert r4_ingress_open_to_world(narrowed) == []
 
 
+def test_r4_ignores_all_icmp_narrowed_to_one_type_but_not_the_reverse() -> None:
+    all_icmp = {"cidr_ipv4": "0.0.0.0/0", "ip_protocol": "icmp", "from_port": -1, "to_port": -1}
+    echo_request = {**all_icmp, "from_port": 8, "to_port": 0}
+    assert r4_ingress_open_to_world(ingress_rule(all_icmp, echo_request)) == []
+    (finding,) = r4_ingress_open_to_world(ingress_rule(echo_request, all_icmp))
+    assert finding.why == "Ingress newly open to the internet: icmp from 0.0.0.0/0."
+
+
 @pytest.mark.parametrize(
     ("before", "after", "opened"),
     [
@@ -359,6 +367,23 @@ def test_r5_ignores_a_private_acl_and_one_that_was_already_public() -> None:
     assert r5_bucket_public(private) == []
     same = {"acl": "public-read"}
     assert r5_bucket_public(change("aws_s3_bucket_acl", ["update"], before=same, after=same)) == []
+
+
+def acl_update(before: str, after: str) -> ResourceChange:
+    return change("aws_s3_bucket_acl", ["update"], before={"acl": before}, after={"acl": after})
+
+
+@pytest.mark.parametrize(
+    ("before", "after"),
+    [("public-read-write", "public-read"), ("public-read", "authenticated-read")],
+)
+def test_r5_ignores_a_public_acl_narrowed_to_a_less_open_one(before: str, after: str) -> None:
+    assert r5_bucket_public(acl_update(before, after)) == []
+
+
+def test_r5_flags_a_public_acl_widened_to_everyone() -> None:
+    (finding,) = r5_bucket_public(acl_update("authenticated-read", "public-read"))
+    assert finding.why == "Bucket ACL set to public-read: anyone can list the bucket."
 
 
 def bucket_policy(before: str | None, after: str, **fields: Any) -> ResourceChange:

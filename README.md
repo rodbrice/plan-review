@@ -39,6 +39,18 @@ Options:
   pull request comment; JSON has a `version` key, the change counts, and one object per
   finding with `rule`, `title`, `severity`, `blocking`, `address` and `message`.
 
+With `--format markdown`, the report on `fixtures/plans/exposure.json` starts with:
+
+```markdown
+## plan-review
+
+Plan: 1 to create, 3 to update in place, 1 to destroy, 2 unchanged (Terraform 1.17.2)
+
+| Rule | Severity | Resource | Finding |
+|------|----------|----------|---------|
+| R5 Bucket made public | **high** | `aws_s3_bucket_public_access_block.assets` | Public access protection turned off for the bucket: block_public_acls, block_public_policy, ignore_public_acls, restrict_public_buckets. |
+```
+
 The command reads `.plan-review.yml` from the current directory when that file exists.
 
 Exit status: 0 when no finding is blocking, 1 when at least one is, 2 when the input
@@ -100,12 +112,13 @@ Scope of R3 to R5, and what they do not do:
   other means (inline `aws_iam_role` blocks, managed policy attachments) are not read.
 - R4 reads `aws_vpc_security_group_ingress_rule`, `aws_security_group_rule` (ingress
   only) and the inline `ingress` blocks of `aws_security_group`. A rule narrowed from a
-  wider world-open one (all traffic to one port, a port range to a single port) and a
-  CIDR known only after apply are not reported.
+  wider world-open one (all traffic to one port, a port range to a single port, all ICMP
+  to one type) and a CIDR known only after apply are not reported.
 - R5 reads `aws_s3_bucket_public_access_block`, `aws_s3_account_public_access_block`,
   `aws_s3_bucket_acl`, the `acl` argument of `aws_s3_bucket` and `aws_s3_bucket_policy`.
-  Explicit ACL grants are not read. Destroying a public-access block is reported even
-  when its bucket is destroyed in the same plan.
+  Explicit ACL grants are not read, and a public canned ACL narrowed to a less open one
+  (`public-read-write` to `public-read`) is not reported. Destroying a public-access
+  block is reported even when its bucket is destroyed in the same plan.
 
 ## What this is not
 
