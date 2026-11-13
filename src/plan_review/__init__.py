@@ -9,9 +9,12 @@ Modules, in the order data flows through them:
 - ``model``: the typed plan JSON and ``load_plan``;
 - ``actions``: classification of each change (create, update, delete, replace, ...);
 - ``stateful``: the explicit list of resource types that hold data;
+- ``iam``: the IAM policy parser and the wildcard grants rule R3 compares;
+- ``exposure``: what rules R4 and R5 compare (open ingress, bucket public access);
 - ``rules``: the rules, pure functions from a resource change to findings;
 - ``findings``: the ``Finding`` type and severities;
-- ``report``: the text report;
+- ``config``: the optional ``.plan-review.yml`` file;
+- ``report``: the text, Markdown and JSON reports;
 - ``cli``: argument parsing and exit status.
 """
 

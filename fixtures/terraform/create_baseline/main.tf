@@ -1,8 +1,10 @@
-# Scenario: a fresh configuration with no prior state. Every resource is created and
-# nothing in it is risky: the bucket blocks public access, the policy is scoped to one
-# bucket, the ingress rule is limited to a private range.
+# Scenario: a fresh configuration with no prior state. Every resource is created: the
+# bucket blocks public access, the ingress rule is limited to a private range, and the
+# policy reads one bucket and its objects.
 #
-# Expected plan: only "create" actions. A reviewer should report nothing blocking here.
+# Expected plan: only "create" actions. Nothing is destroyed, replaced, opened to the
+# internet or made public. The policy's object resource ends in "/*", which counts as a
+# new wildcard resource, so a reviewer reports one R3 finding and nothing else.
 
 resource "aws_s3_bucket" "assets" {
   bucket = "example-app-assets"
