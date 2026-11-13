@@ -254,6 +254,40 @@ def test_r4_flags_a_world_open_rule_that_is_widened(
     assert finding.why == f"Ingress newly open to the internet: {opened} from 0.0.0.0/0."
 
 
+def test_r4_flags_a_port_range_whose_upper_end_is_known_only_after_apply() -> None:
+    def update(before: dict[str, Any]) -> ResourceChange:
+        return change(
+            "aws_vpc_security_group_ingress_rule",
+            ["update"],
+            before={"cidr_ipv4": "0.0.0.0/0", **before},
+            after={"cidr_ipv4": "0.0.0.0/0", "ip_protocol": "tcp", "from_port": 22},
+            after_unknown={"to_port": True},
+        )
+
+    (finding,) = r4_ingress_open_to_world(
+        update({"ip_protocol": "tcp", "from_port": 22, "to_port": 22})
+    )
+    assert finding.why == "Ingress newly open to the internet: tcp from 0.0.0.0/0."
+    assert r4_ingress_open_to_world(update(ALL_TRAFFIC)) == []
+
+
+def test_r4_lists_openings_with_a_port_known_only_after_apply_next_to_known_ones() -> None:
+    blocks = [
+        {"cidr_blocks": ["0.0.0.0/0"], "protocol": "tcp", "from_port": 443, "to_port": 443},
+        {"cidr_blocks": ["0.0.0.0/0"], "protocol": "tcp", "to_port": 8080},
+    ]
+    group = change(
+        "aws_security_group",
+        ["create"],
+        after={"ingress": blocks},
+        after_unknown={"ingress": [{}, {"from_port": True}]},
+    )
+    (finding,) = r4_ingress_open_to_world(group)
+    assert finding.why == (
+        "Ingress newly open to the internet: tcp from 0.0.0.0/0, port 443/tcp from 0.0.0.0/0."
+    )
+
+
 def test_r4_ignores_a_world_open_rule_being_deleted() -> None:
     deleted = change(
         "aws_vpc_security_group_ingress_rule",

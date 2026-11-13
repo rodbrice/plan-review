@@ -2,8 +2,9 @@
 
 Each function receives one resource change and returns short descriptions of what is
 new in ``after`` compared with ``before``; an empty list means nothing to report.
-Values that are known only after apply are missing from ``after`` and therefore never
-count as open or public; such a change is not reported.
+Values that are known only after apply are missing from ``after``. A missing CIDR or
+bucket setting never counts as open or public; a missing port is unknown, so the rule is
+reported unless an all-traffic rule from the same CIDR already covered it.
 
 Resource types covered:
 
@@ -69,7 +70,7 @@ _INGRESS_ATTRIBUTES: dict[str, tuple[str, ...]] = {
 }
 
 
-@dataclass(frozen=True, order=True)
+@dataclass(frozen=True)
 class _Opening:
     cidr: str
     protocol: str
@@ -81,19 +82,40 @@ class _Opening:
             return self.cidr
         return f"{_ports(self.protocol, self.from_port, self.to_port)} from {self.cidr}"
 
+    def sort_key(self) -> tuple[str, str, bool, int, bool, int]:
+        """Report order: CIDR, protocol, then ports with a missing port first."""
+        return (
+            self.cidr,
+            self.protocol,
+            self.from_port is not None,
+            self.from_port or 0,
+            self.to_port is not None,
+            self.to_port or 0,
+        )
+
     def covers(self, other: _Opening) -> bool:
-        """Everything ``other`` lets in from its CIDR, this opening already let in."""
+        """Everything ``other`` lets in from its CIDR, this opening already let in.
+
+        A port that is missing (known only after apply) is unknown: it neither covers nor
+        is covered, except by an all-traffic rule.
+        """
         if self.cidr != other.cidr:
             return False
         if self.protocol in ALL_PROTOCOLS:
             return True
         if self.protocol != other.protocol:
             return False
+        low, high, other_low, other_high = (
+            self.from_port,
+            self.to_port,
+            other.from_port,
+            other.to_port,
+        )
+        if low is None or high is None or other_low is None or other_high is None:
+            return False
         if self.protocol in ICMP_PROTOCOLS:
-            return _any_or_same(self.from_port, other.from_port) and _any_or_same(
-                self.to_port, other.to_port
-            )
-        return _at_most(self.from_port, other.from_port) and _at_most(other.to_port, self.to_port)
+            return _any_or_same(low, other_low) and _any_or_same(high, other_high)
+        return low <= other_low and other_high <= high
 
 
 def new_open_ingress(change: ResourceChange) -> list[str]:
@@ -108,7 +130,7 @@ def new_open_ingress(change: ResourceChange) -> list[str]:
         if not any(old.covers(opening) for old in before)
     }
     show_ports = not any(change.change.is_sensitive([name]) for name in attributes)
-    return [opening.describe(ports=show_ports) for opening in sorted(new)]
+    return [opening.describe(ports=show_ports) for opening in sorted(new, key=_Opening.sort_key)]
 
 
 def removed_public_access_blocks(change: ResourceChange) -> list[str]:
@@ -233,16 +255,9 @@ def _open(cidrs: list[object], protocol: object, values: dict[str, Any]) -> set[
     }
 
 
-def _any_or_same(before: int | None, after: int | None) -> bool:
+def _any_or_same(before: int, after: int) -> bool:
     """An ICMP type or code already allowed: ``-1`` stands for any, else they must match."""
     return before == -1 or before == after
-
-
-def _at_most(lower: int | None, upper: int | None) -> bool:
-    """``lower <= upper`` where ``None`` is the open end of a range."""
-    if lower is None:
-        return True
-    return upper is not None and lower <= upper
 
 
 def _ports(protocol: str, from_port: int | None, to_port: int | None) -> str:
