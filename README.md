@@ -113,8 +113,9 @@ Scope of R3 to R5, and what they do not do:
 - R4 reads `aws_vpc_security_group_ingress_rule`, `aws_security_group_rule` (ingress
   only) and the inline `ingress` blocks of `aws_security_group`. A rule narrowed from a
   wider world-open one (all traffic to one port, a port range to a single port, all ICMP
-  to one type) and a CIDR known only after apply are not reported. ICMP rules are compared
-  by type and code, where `-1` stands for any.
+  to one type) and a CIDR known only after apply are not reported. A port known only
+  after apply is reported unless an all-traffic rule from the same CIDR already covered
+  it. ICMP rules are compared by type and code, where `-1` stands for any.
 - R5 reads `aws_s3_bucket_public_access_block`, `aws_s3_account_public_access_block`,
   `aws_s3_bucket_acl`, the `acl` argument of `aws_s3_bucket` and `aws_s3_bucket_policy`.
   Explicit ACL grants are not read, and a public canned ACL narrowed to a less open one

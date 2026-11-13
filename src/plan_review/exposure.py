@@ -39,7 +39,7 @@ WORLD_IPV6 = "::/0"
 
 # Protocol values that stand for every protocol and port.
 ALL_PROTOCOLS = ("-1", "all")
-# Protocol values whose ports are an ICMP type and code; -1 and -1 stand for all of them.
+# Protocol values whose ports are an ICMP type and code; -1 in either field stands for any.
 ICMP_PROTOCOLS = ("icmp", "icmpv6", "1", "58")
 
 # Canned ACLs that grant access beyond the bucket owner's account, narrowest first:
